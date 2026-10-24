@@ -129,6 +129,29 @@ async function ensureSchema() {
       PRIMARY KEY (module_id, topic_slug),
       INDEX (module_id)
     )`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS batches (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(180) NOT NULL,
+      description TEXT NOT NULL,
+      schedule VARCHAR(180) NOT NULL,
+      start_date DATE NULL,
+      end_date DATE NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'open',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX (status), INDEX (start_date)
+    )`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS batch_requests (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      batch_id BIGINT UNSIGNED NOT NULL,
+      user_id BIGINT UNSIGNED NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      requested_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at TIMESTAMP NULL DEFAULT NULL,
+      reviewed_by VARCHAR(100) NULL DEFAULT NULL,
+      UNIQUE KEY user_batch_request (batch_id, user_id),
+      INDEX (batch_id), INDEX (user_id), INDEX (status)
+    )`);
     const [[count]] = await connection.query("SELECT COUNT(*) AS count FROM content_modules");
     if (Number(count.count) === 0) {
       for (let index = 0; index < seed.length; index += 1) {
@@ -260,6 +283,46 @@ async function api(req, res, pathname) {
     if (!module) return json(res, 404, { error: "Module not found" });
     await (await db()).query("INSERT INTO content_documentation (module_id, topic_slug, topic_title, markdown, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE topic_title=VALUES(topic_title), markdown=VALUES(markdown)", [documentationMatch[1], documentationMatch[2], topicTitle, markdown, Number(input.sortOrder) || 0]);
     return json(res, 200, { ok: true });
+  }
+  if (req.method === "GET" && pathname === "/api/batches") {
+    if (!requireUser(session) || !session.user_id) return json(res, 401, { error: "Candidate login required" });
+    const database = await db();
+    const [batches] = await database.query(`SELECT b.id, b.name, b.description, b.schedule, b.start_date AS startDate, b.end_date AS endDate, b.status, b.created_at AS createdAt, r.id AS requestId, r.status AS requestStatus FROM batches b LEFT JOIN batch_requests r ON r.batch_id=b.id AND r.user_id=? WHERE b.status <> 'archived' ORDER BY COALESCE(b.start_date, '9999-12-31'), b.name`, [session.user_id]);
+    return json(res, 200, { batches });
+  }
+  const batchRequestMatch = pathname.match(/^\/api\/batches\/([0-9]+)\/request$/);
+  if (batchRequestMatch && req.method === "POST") {
+    if (!requireUser(session) || !session.user_id) return json(res, 401, { error: "Candidate login required" });
+    const [[batch]] = await (await db()).query("SELECT id, status FROM batches WHERE id=? LIMIT 1", [batchRequestMatch[1]]);
+    if (!batch || batch.status === "archived") return json(res, 404, { error: "Batch not found" });
+    await (await db()).query("INSERT INTO batch_requests (batch_id, user_id, status, requested_at, reviewed_at, reviewed_by) VALUES (?, ?, 'pending', NOW(), NULL, NULL) ON DUPLICATE KEY UPDATE status='pending', requested_at=NOW(), reviewed_at=NULL, reviewed_by=NULL", [batchRequestMatch[1], session.user_id]);
+    return json(res, 200, { ok: true, status: "pending" });
+  }
+  if (req.method === "GET" && pathname === "/api/admin/batches") {
+    const database = await db();
+    const [batches] = await database.query(`SELECT b.id, b.name, b.description, b.schedule, b.start_date AS startDate, b.end_date AS endDate, b.status, b.created_at AS createdAt, COUNT(CASE WHEN r.status='approved' THEN 1 END) AS memberCount, COUNT(CASE WHEN r.status='pending' THEN 1 END) AS pendingCount FROM batches b LEFT JOIN batch_requests r ON r.batch_id=b.id GROUP BY b.id ORDER BY COALESCE(b.start_date, '9999-12-31'), b.name`);
+    const [requests] = await database.query(`SELECT r.id, r.batch_id AS batchId, b.name AS batchName, r.status, r.requested_at AS requestedAt, u.id AS userId, u.full_name AS name, u.email, u.phone FROM batch_requests r JOIN batches b ON b.id=r.batch_id JOIN users u ON u.id=r.user_id ORDER BY CASE WHEN r.status='pending' THEN 0 ELSE 1 END, r.requested_at DESC`);
+    return json(res, 200, { batches, requests });
+  }
+  if (req.method === "POST" && pathname === "/api/admin/batches") {
+    const input = await body(req); const name = safe(input.name); if (!name) return json(res, 400, { error: "Batch name is required" });
+    const result = await (await db()).query("INSERT INTO batches (name, description, schedule, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?)", [name, safe(input.description), safe(input.schedule), input.startDate || null, input.endDate || null, ["open", "upcoming", "closed", "archived"].includes(input.status) ? input.status : "open"]);
+    return json(res, 201, { id: result[0].insertId });
+  }
+  const adminBatchMatch = pathname.match(/^\/api\/admin\/batches\/([0-9]+)$/);
+  if (adminBatchMatch && req.method === "PATCH") {
+    const input = await body(req); const status = ["open", "upcoming", "closed", "archived"].includes(input.status) ? input.status : "open";
+    const result = await (await db()).query("UPDATE batches SET name=?, description=?, schedule=?, start_date=?, end_date=?, status=? WHERE id=?", [safe(input.name), safe(input.description), safe(input.schedule), input.startDate || null, input.endDate || null, status, adminBatchMatch[1]]);
+    if (!result[0].affectedRows) return json(res, 404, { error: "Batch not found" });
+    return json(res, 200, { ok: true });
+  }
+  if (adminBatchMatch && req.method === "DELETE") {
+    await (await db()).query("DELETE FROM batch_requests WHERE batch_id=?", [adminBatchMatch[1]]); await (await db()).query("DELETE FROM batches WHERE id=?", [adminBatchMatch[1]]); return json(res, 200, { ok: true });
+  }
+  const batchDecisionMatch = pathname.match(/^\/api\/admin\/batch-requests\/([0-9]+)$/);
+  if (batchDecisionMatch && req.method === "PATCH") {
+    const input = await body(req); const status = input.status === "approved" ? "approved" : input.status === "denied" ? "denied" : ""; if (!status) return json(res, 400, { error: "Decision must be approved or denied" });
+    const result = await (await db()).query("UPDATE batch_requests SET status=?, reviewed_at=NOW(), reviewed_by='admin' WHERE id=?", [status, batchDecisionMatch[1]]); if (!result[0].affectedRows) return json(res, 404, { error: "Batch request not found" }); return json(res, 200, { ok: true, status });
   }
   const moduleMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)$/);
   const reorderMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/lessons\/reorder$/);
