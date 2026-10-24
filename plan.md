@@ -1,32 +1,27 @@
 # Scalevo Learning Workspace — implementation plan
 
 ## Scope
-Build a preview-ready Scalevo DevOps learning workspace based on the supplied repository and product requirements. Preserve the existing light glass dashboard character while adding route-aware learner navigation, a 15-module curriculum catalog, module detail tabs for Recordings and Documentation, batch status surfaces, and an admin access-management view.
+Build a preview-ready Scalevo DevOps learning workspace from the supplied repository, preserving its light glass dashboard language while making the product deployable for real learners and administrators. Learners receive only the learner workspace; administrators receive a separate protected management workspace.
 
 ## Reference audit
-The supplied repository is a compact Node HTTP server plus one large static HTML application. Its established visual language is:
-- Manrope body text and Space Grotesk display headings.
-- A pale `#f6f8fc` canvas with blue/indigo radial washes.
-- Semi-transparent white glass cards, soft slate borders, deep navy ink, and blue/violet accents.
-- Rounded 1.25–1.75rem cards, compact uppercase eyebrow labels, Lucide-style line icons, and short hover lift transitions.
-- The current catalog contains seven recording-oriented modules, Google Drive lesson IDs, candidate/admin entry points, and in-app progress controls.
+The supplied repository is a compact Node HTTP server plus a static client. It already establishes the Scalevo visual system, Google Identity Services entry point, candidate/admin sign-in split, MySQL persistence, module access requests, progress tracking, recording management, and candidate progress reporting. The managed project keeps that architecture and expands the seed catalog to 15 modules with official Devicon/Iconify assets where available.
 
 ## Implementation approach
-- Use a dependency-light Node HTTP server on port 3000.
-- Serve a static client from `public/`, with SPA fallback for all learner/admin routes.
-- Keep demo data in `public/app.js` to make the experience immediately inspectable; expose the same data through `/api/catalog` and `/api/health` for future server/database wiring.
-- Use the History API and a small route parser for shareable URLs such as `/dashboard`, `/modules`, `/modules/:id/recordings`, `/modules/:id/documentation`, `/modules/:id/documentation/:topicSlug`, `/batches`, `/admin/batches`, and `/admin/access-requests`.
-- Implement the real interaction shell: module search, module tabs, topic previous/next controls, read markers, batch request states, admin tab changes, responsive sidebar, and a branded video-player modal with native-looking controls and no Google Drive chrome.
-- Use official Devicon CDN assets where the reference already does; use neutral Lucide symbols for cross-cutting concepts and fallbacks when an icon fails.
+- Use a dependency-light Node HTTP server on port 3000 with MySQL-backed users, sessions, module access requests, progress, modules, recordings, and documentation.
+- Preserve Google sign-in for learners, requiring a verified Gmail credential plus full name and phone number. Keep administrator authentication separate with the requested development defaults `admin` / `admin123`, overridable by `ADMIN_USERNAME` and `ADMIN_PASSWORD` in deployment configuration.
+- Route the client by authenticated role: a learner sees the course library, access states, recordings, progress, and published documentation; an admin sees the protected admin workspace, access-request decisions, user progress, module editing, recording editing/reordering, and markdown documentation editing.
+- Keep documentation empty by default. Administrators choose a module and recording/topic, paste markdown, and save it through `/api/admin/modules/:moduleId/documentation/:topicSlug`; approved learners see only published notes.
+- Add a mobile navigation drawer to the authenticated header so learner/admin navigation remains usable on phones, tablets, narrow laptops, and desktop widths.
+- Keep the no-Google-Drive-branding player treatment in the learner UI while retaining the repository’s recording ID model for the admin-managed lesson library.
 
 ## Project structure
-- `server.js`: static file server, SPA fallback, API endpoints, and health response.
-- `public/index.html`: document shell and Google Fonts/Devicon/Lucide imports.
-- `public/styles.css`: preserved Scalevo token system, responsive layout, card surfaces, player, and state styling.
-- `public/app.js`: seed curriculum, route state, rendering, interactions, and demo access/progress behavior.
-- `public/manus-routes.json`: complete route manifest for managed preview.
-- `scalevo-mark.svg`: reusable transparent S/V monogram from the reference.
-- `app.config.ts`: platform logo metadata.
+- `server.js`: database schema/bootstrap, auth sessions, Google verification, learner/admin APIs, markdown documentation API, static serving, and deep-route fallback.
+- `index.html`: responsive Scalevo client, login flows, learner module view, admin workspace, recording player, mobile navigation, and documentation editor.
+- `content-seed.json`: 15-module curriculum seed; real recording IDs are retained where available and other lesson slots remain pending for admin configuration.
+- `manus-routes.json`: managed route manifest.
+- `scalevo-mark.svg`: reusable S/V monogram.
+- `app.config.ts`: managed project logo metadata.
+- `Dockerfile` / `package.json`: production container and dependency-light runtime.
 - `TODO.md`: outcome-level delivery criteria and status.
 
 ## Design direction
@@ -38,31 +33,31 @@ The supplied repository is a compact Node HTTP server plus one large static HTML
 ### Chosen style: Soft glass command center
 **Design Movement:** Contemporary product dashboard with soft glassmorphism and editorial learning cues.
 
-**Core Principles:** Make progress visible; keep navigation calm and obvious; use color for orientation not decoration; make dense curriculum feel approachable.
+**Core Principles:** Make progress visible; keep navigation calm and obvious; use color for orientation, not decoration; make dense curriculum approachable.
 
-**Color Philosophy:** The cool off-white canvas and translucent surfaces create a private-feeling study room. Scalevo blue and violet mark movement and progression, while emerald, amber, and rose are reserved for status so meaning remains legible.
+**Color Philosophy:** A cool off-white canvas and translucent surfaces create a private-feeling study room. Scalevo blue and violet mark movement; emerald, amber, and rose communicate status.
 
-**Layout Paradigm:** A persistent slim rail frames a wide reading surface. Catalog pages use asymmetric hero copy plus a responsive module grid; detail pages use a narrow lesson index alongside a generous reading column.
+**Layout Paradigm:** A responsive wide workspace with asymmetric hero copy, module cards, focused module detail views, and admin sections that become single-column on narrow screens.
 
-**Signature Elements:** Gradient S/V monogram, uppercase micro-labels with generous tracking, and progress bars that use the module accent as a visual bookmark.
+**Signature Elements:** Gradient S/V monogram, uppercase micro-labels, module-accent progress bars, and deliberate status pills.
 
-**Interaction Philosophy:** Every primary action is explicit and reversible. Tabs, breadcrumbs, in-app Back, and browser history should feel like one coherent navigation model.
+**Interaction Philosophy:** Every primary action is explicit and reversible. Login mode, access request, admin approval, recording management, markdown save, and mobile navigation provide immediate feedback.
 
-**Animation:** Use short 160–220ms transitions for card lift, progress fill, route changes, and tab underline. Respect `prefers-reduced-motion`.
+**Animation:** Use short card-lift and progress transitions, with reduced-motion support.
 
-**Typography System:** Manrope for UI and body copy; Space Grotesk for headlines, module numbers, and large metrics. Eyebrows use 10–11px semibold uppercase labels with tracking.
+**Typography System:** Manrope for UI/body; Space Grotesk for headlines and metrics; small uppercase eyebrows for orientation.
 
-**Brand Essence:** A focused DevOps learning workspace for learners who want practical momentum, not content sprawl. Personality: precise, encouraging, quietly technical.
+**Brand Essence:** A focused DevOps learning workspace for practical momentum. Personality: precise, encouraging, quietly technical.
 
-**Brand Voice:** Headlines are direct and energizing (“Build the habit. Ship the concept.”). Microcopy is reassuring and specific (“Your request is queued for admin review.”).
+**Brand Voice:** Direct and useful: “Learn one focused recording at a time.” / “Documentation has not been published yet.”
 
-**Wordmark & Logo:** Use the supplied S/V monogram with the `Scalevo` wordmark in Space Grotesk; never place the mark inside a decorative badge.
+**Wordmark & Logo:** Use the supplied transparent S/V monogram with the Scalevo wordmark.
 
 **Signature Brand Color:** Scalevo blue `#3568f5`, balanced by indigo `#4f46e5` and violet `#7c3aed`.
 
 ## Build and delivery workflow
-1. Write the static client, API shell, route manifest, and project metadata.
-2. Start the Node service on the managed runtime port and verify `/`, `/manus-routes.json`, and `/api/health`.
-3. Run syntax checks and inspect the rendered application through managed Preview/screenshot only if needed.
-4. Commit intended files to the managed project’s main branch so the checkpoint is recorded.
-5. Leave publication separate unless explicitly requested; Preview is the default handoff for this implementation task.
+1. Seed the database schema and curriculum, then serve the authenticated client and API.
+2. Start the Node service and verify `/`, `/api/health`, `/api/auth/me`, and `/manus-routes.json`.
+3. Validate server and embedded client syntax, the requested admin credential flow, protected admin content, 15-module seed, empty documentation state, and responsive/mobile hooks.
+4. Commit and push intended files to the managed project’s main branch so the checkpoint is recorded.
+5. Keep publication separate from the checkpoint unless explicitly requested and configured.

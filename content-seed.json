@@ -1,0 +1,527 @@
+[
+  {
+    "id": "intro-devops",
+    "number": "01",
+    "category": "Foundations",
+    "title": "Introduction to DevOps",
+    "accent": "#3568f5",
+    "icon": "https://api.iconify.design/lucide/workflow.svg",
+    "description": "Understand the culture, lifecycle, and feedback loops that help teams ship reliable software with less drama.",
+    "lessons": [
+      {
+        "title": "What DevOps actually means",
+        "id": ""
+      },
+      {
+        "title": "The delivery lifecycle",
+        "id": ""
+      },
+      {
+        "title": "From commit to feedback",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "cloud-virtualization",
+    "number": "02",
+    "category": "Cloud",
+    "title": "Cloud and Virtualization",
+    "accent": "#ff9900",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original-wordmark.svg",
+    "description": "Compare cloud service models, virtual machines, containers, serverless, and safe first steps on AWS.",
+    "lessons": [
+      {
+        "title": "Cloud service models",
+        "id": ""
+      },
+      {
+        "title": "Virtualization vs containers",
+        "id": ""
+      },
+      {
+        "title": "Your first AWS resource",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "linux",
+    "number": "03",
+    "category": "Core OS",
+    "title": "Linux Fundamentals",
+    "accent": "#f59e0b",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg",
+    "description": "Build a dependable command-line foundation, from files and permissions to processes, shell scripts, and remote access.",
+    "lessons": [
+      {
+        "title": "Echo and cat",
+        "id": "18WEPIkSohsxvBVyHnlhpLwP_Eu2X65Rn"
+      },
+      {
+        "title": "Grep and find commands",
+        "id": "1fTvbFHp_tngKiLiM-yZit-t-V7R5h72o"
+      },
+      {
+        "title": "Linux permissions and ownerships",
+        "id": "1Ac5YPxWfcJagAS5Za6Ju1yEFHVr500ca"
+      },
+      {
+        "title": "Linux special permissions",
+        "id": "1y1YcyEpo4i1SuEi8ZJYo20LtelTTn1Js"
+      },
+      {
+        "title": "Logs and troubleshooting",
+        "id": "1mvVTL6SxlexTOmoAnPtgDOEdbfwhUu7M"
+      },
+      {
+        "title": "Managing services with systemctl",
+        "id": "1C-xnCej8p5CtQ5UqYORQGK2l-ADLFL04"
+      },
+      {
+        "title": "Package manager",
+        "id": "1hs47zKpiScbhQtiQp6h60VX8ipmwK6L3"
+      },
+      {
+        "title": "Process management",
+        "id": "13-dzmGF0_ujpnIatnKsAMsPLDpbYVQkj"
+      },
+      {
+        "title": "Shell scripting and cron jobs",
+        "id": "1eJTnczdgvXCinLDeCrxfS1anAnZVa9W7"
+      },
+      {
+        "title": "SSH and SCP",
+        "id": "1JMLCEm28QWtHM2xA93uf1XTQjzohsJkZ"
+      },
+      {
+        "title": "System monitoring",
+        "id": "199ST1hMGrXzqj0y-v_GGFq2zVjykf3lP"
+      },
+      {
+        "title": "User and group management",
+        "id": "1GU5DOwX2ZSEoHqkY8PKeo2VafqOZUcnt"
+      }
+    ]
+  },
+  {
+    "id": "git",
+    "number": "04",
+    "category": "Source Control",
+    "title": "Version Control with Git and GitHub/GitLab",
+    "accent": "#f97316",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg",
+    "description": "Learn the everyday Git workflow, collaboration patterns, branching strategies, and practical GitHub habits.",
+    "lessons": [
+      {
+        "title": "Git introduction and fundamentals",
+        "id": "1GKupWL6Jxw92l9mjALXBKmhGWIpzz8DZ"
+      },
+      {
+        "title": "Git merge conflict, branching and strategies",
+        "id": "1pOPTvyXem8vLpHy374bOJn4POiTaJQwr"
+      },
+      {
+        "title": "GitHub pull request",
+        "id": "1VSH95x0pObbzlvEDKnxwN7NhZ9ibHadQ"
+      },
+      {
+        "title": "GitHub workflow",
+        "id": "1mGAAMQZHjrVbrDVnRRAcgEJHmV9kJZKm"
+      }
+    ]
+  },
+  {
+    "id": "ci",
+    "number": "05",
+    "category": "Automation",
+    "title": "Continuous Integration (CI)",
+    "accent": "#d946ef",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jenkins/jenkins-original.svg",
+    "description": "Connect source control to repeatable builds, test automation, Jenkins pipelines, and GitHub Actions workflows.",
+    "lessons": [
+      {
+        "title": "Basic Nginx deployment in Jenkins",
+        "id": "1Rb6yNpsBTdE_g10MY8r-ONCPPZdUJQZW"
+      },
+      {
+        "title": "GitHub Actions 1",
+        "id": "1QVZeisH6IezzhdFGqDa_tPfessWa88_J"
+      },
+      {
+        "title": "GitHub Actions 2 and 3",
+        "id": "1t2wX_z6Ya7Nu6oH4-VTmCu2ULJ1vi6ea"
+      },
+      {
+        "title": "GitHub Actions SCP",
+        "id": "1CAdVTQAipbrH6LDsnzFqnmYLJcsFbF_r"
+      },
+      {
+        "title": "GitHub repository creation",
+        "id": "1vhKO640G3x9WpHElwyAsfGG5i5kuMWtZ"
+      },
+      {
+        "title": "Gradle part 1",
+        "id": "1z1AD108FPIATqKbPJrtCtSpCRewS5Cd6"
+      },
+      {
+        "title": "Gradle part 2 and RBAC",
+        "id": "1cihBp3G05CJvhJbdI3xfhMYgArnLokiM"
+      },
+      {
+        "title": "Jenkins agents over SSH",
+        "id": "1G3tjgzVFe9z229P-GZ6D-Rnf2aqcxfvD"
+      },
+      {
+        "title": "Jenkins agents",
+        "id": "1FLRsC2HYnPkFQ7xuzWrUINl3jpMB8s-5"
+      },
+      {
+        "title": "Jenkins distributed architecture",
+        "id": "1OVWLi5IOn8Fpl5o46tBnE2kyZ9TncuF9"
+      },
+      {
+        "title": "Jenkins introduction and freestyle",
+        "id": "1WzFGde6edCpV-vH9AnUR3N1YdSKbReEh"
+      },
+      {
+        "title": "Jenkins pipeline",
+        "id": "1OhCILLG438ySnf3tX-nvu40PEJrgUL2L"
+      },
+      {
+        "title": "Maven Jenkins integration",
+        "id": "1Eprr_9TZPupWkTtFmrFGDgcFdb9duw3O"
+      },
+      {
+        "title": "Maven manual",
+        "id": "1QGDP2Z5QRRmMFPqFenB33wrYFEn-LSKM"
+      },
+      {
+        "title": "RBAC part 2 and pipeline stage view",
+        "id": "1o7fWSipbu_EnqmRTGwmYzZ2QRnO_lXEe"
+      }
+    ]
+  },
+  {
+    "id": "containers",
+    "number": "06",
+    "category": "Runtime",
+    "title": "Containers and Containerization",
+    "accent": "#2496ed",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg",
+    "description": "Understand container images, lifecycle, networking, storage, Compose, and daemonless alternatives.",
+    "lessons": [
+      {
+        "title": "Docker volumes",
+        "id": "181zzWUGwWioYAXUBl3G_f2hTmXTCs6-i"
+      },
+      {
+        "title": "Docker fundamentals",
+        "id": "1YzxHoZSB6DNDOkoofp1sHJ24Ok27fDFK"
+      },
+      {
+        "title": "Docker Jenkins automation",
+        "id": "1nHbwfArFO0hb5Us7Zpmfavq4LpFLWeyJ"
+      },
+      {
+        "title": "Docker networking",
+        "id": "1YQg-BKyX99i1n9AbTMOrjMKQ8ZJBxkPc"
+      },
+      {
+        "title": "Docker storage",
+        "id": "14O4qPiFk1RtY00thK_YVfIdsNFeYixGy"
+      },
+      {
+        "title": "Docker Compose",
+        "id": "1BbooMOPjNhScijWyvoMzMyKLJR5mcaP1"
+      },
+      {
+        "title": "Dockerfile",
+        "id": "1lJ9EfYFie7-gxVriz4t8HDcCwJuG_uOv"
+      },
+      {
+        "title": "Podman and Buildah",
+        "id": "1jVbITFUbhtviDQw26eEvy2gIquoDYHC6"
+      }
+    ]
+  },
+  {
+    "id": "kubernetes",
+    "number": "07",
+    "category": "Orchestration",
+    "title": "Container Orchestration",
+    "accent": "#326ce5",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg",
+    "description": "Move from one container to reliable clusters with Kubernetes workloads, services, configuration, and packaging.",
+    "lessons": [
+      {
+        "title": "DaemonSets and ConfigMaps",
+        "id": "17uixDVvlAEo68azcj8qnWs2_qKayWFc9"
+      },
+      {
+        "title": "Deployments and rolling updates",
+        "id": "1rbsrx_-j3mfnKj0bnDEJCo_hgBXy78YK"
+      },
+      {
+        "title": "Helm and Kustomize",
+        "id": "1SoMg3pOASxuRxuDV-_7UB-PAa_c-Pq--"
+      },
+      {
+        "title": "Ingress",
+        "id": "1LLwABeDGTfFVCzyjLwzUjDJXIZcwFlyv"
+      },
+      {
+        "title": "Kubeadm",
+        "id": "1YV_BFXKunqF96pZVcmxfbVBb7DHg9r5E"
+      },
+      {
+        "title": "Kubernetes cluster architecture",
+        "id": "1ktvmAZe2A6MjrzIrwoaug4LtrwlEPVHz"
+      },
+      {
+        "title": "Kubernetes introduction",
+        "id": "1swBPp9_DIqOF6lH3ZzRWHN98W-clcdCe"
+      },
+      {
+        "title": "Minikube and kind",
+        "id": "16gtgxhJ3nKK-iFifrbhdN7qTMk0db1F2"
+      },
+      {
+        "title": "Namespaces and pods",
+        "id": "16H0rjhoPQthE_igNF-TV6L9bNn7sRyCf"
+      },
+      {
+        "title": "PV, PVC and StorageClass",
+        "id": "1IZkx_npQ1qZgOHYlvfk4324uqfHMNw_t"
+      },
+      {
+        "title": "ReplicaSets",
+        "id": "1fU5pXkqH3SlLYjwPWVGyqIOz6stVmgDK"
+      },
+      {
+        "title": "Secrets",
+        "id": "1iBeZiCJqopjWeZ2d6Z_-P8SOhlPl9K0S"
+      },
+      {
+        "title": "Services",
+        "id": "1kgDL3ZxrcT1RUVT7uc0Jgdp5ZQ0NG06c"
+      }
+    ]
+  },
+  {
+    "id": "terraform",
+    "number": "08",
+    "category": "Infrastructure",
+    "title": "Infrastructure as Code (IaC)",
+    "accent": "#844fba",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg",
+    "description": "Turn infrastructure into repeatable, reviewable configuration with Terraform providers, state, and modules.",
+    "lessons": [
+      {
+        "title": "Terraform modules",
+        "id": "1wG0Z4bNPmkUpZoKU5WgFPyb6MjGnz9ZZ"
+      },
+      {
+        "title": "Terraform using Jenkins and IAM roles",
+        "id": "1arwDPG8gkf4NScpnovQCq2iEhvqVj5Bs"
+      },
+      {
+        "title": "Terraform EC2",
+        "id": "1e5IX9jYksjaivBTuNQGfrjQNy3BWGnWz"
+      },
+      {
+        "title": "Terraform introduction and S3 automation",
+        "id": "1rcJbZn2Nf9z_1OVyRpgnGP9LpCruwB4d"
+      }
+    ]
+  },
+  {
+    "id": "config-management",
+    "number": "09",
+    "category": "Operations",
+    "title": "Configuration Management",
+    "accent": "#16a34a",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/ansible/ansible-original.svg",
+    "description": "Make host configuration repeatable with Ansible concepts, YAML, roles, variables, and safe automation.",
+    "lessons": [
+      {
+        "title": "Ansible inventory and playbooks",
+        "id": ""
+      },
+      {
+        "title": "YAML for automation",
+        "id": ""
+      },
+      {
+        "title": "Roles, handlers, and variables",
+        "id": ""
+      },
+      {
+        "title": "Configuration drift",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "delivery",
+    "number": "10",
+    "category": "GitOps",
+    "title": "Continuous Delivery and Deployment",
+    "accent": "#ef4444",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/argocd/argocd-original.svg",
+    "description": "Ship with confidence using progressive delivery patterns, GitOps workflows, and Kubernetes deployment automation.",
+    "lessons": [
+      {
+        "title": "ArgoCD project",
+        "id": "14FD7dTGRTpOCZjdKLgklsM0VYUhDJAfA"
+      },
+      {
+        "title": "ArgoCD",
+        "id": "1ZzXLN6mfapRzh7FMj0Y079z45jr0kTfw"
+      },
+      {
+        "title": "Deployment strategies 2",
+        "id": "19dgLz95aS__SMA8cj58aYpcEPD3StaPV"
+      },
+      {
+        "title": "Deployment strategies",
+        "id": "1y6DMwIYnGAjva7hkJnAub2kmNXlgmNF8"
+      }
+    ]
+  },
+  {
+    "id": "observability",
+    "number": "11",
+    "category": "Reliability",
+    "title": "Monitoring, Logging, and Observability",
+    "accent": "#e11d48",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/grafana/grafana-original.svg",
+    "description": "Use metrics, logs, traces, and alerting to understand system behavior and respond to incidents.",
+    "lessons": [
+      {
+        "title": "Prometheus metrics",
+        "id": ""
+      },
+      {
+        "title": "Grafana dashboards",
+        "id": ""
+      },
+      {
+        "title": "Centralized logging",
+        "id": ""
+      },
+      {
+        "title": "Tracing and alerting",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "devsecops",
+    "number": "12",
+    "category": "Security",
+    "title": "DevSecOps",
+    "accent": "#7c3aed",
+    "icon": "https://api.iconify.design/lucide/shield-check.svg",
+    "description": "Build security into delivery with scanning, secrets management, policy as code, and shared responsibility.",
+    "lessons": [
+      {
+        "title": "Security in CI/CD",
+        "id": ""
+      },
+      {
+        "title": "Trivy scanning",
+        "id": ""
+      },
+      {
+        "title": "Secrets management",
+        "id": ""
+      },
+      {
+        "title": "Policy as code",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "collaboration",
+    "number": "13",
+    "category": "Teamwork",
+    "title": "Collaboration and Project Management Tools",
+    "accent": "#0ea5e9",
+    "icon": "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg",
+    "description": "Coordinate work with Agile habits, planning tools, ChatOps, and documentation that stays close to delivery.",
+    "lessons": [
+      {
+        "title": "Agile and Scrum overview",
+        "id": ""
+      },
+      {
+        "title": "Jira workflows",
+        "id": ""
+      },
+      {
+        "title": "ChatOps patterns",
+        "id": ""
+      },
+      {
+        "title": "Documentation systems",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "ai-mlops",
+    "number": "14",
+    "category": "Emerging",
+    "title": "AI/ML Ops: AIOps and MLOps",
+    "accent": "#8b5cf6",
+    "icon": "https://api.iconify.design/lucide/brain-circuit.svg",
+    "description": "Understand how AI assists operations and how machine-learning systems need their own repeatable lifecycle.",
+    "lessons": [
+      {
+        "title": "AIOps and MLOps foundations",
+        "id": ""
+      },
+      {
+        "title": "ML pipelines",
+        "id": ""
+      },
+      {
+        "title": "MLflow introduction",
+        "id": ""
+      },
+      {
+        "title": "AI-powered monitoring",
+        "id": ""
+      }
+    ]
+  },
+  {
+    "id": "capstone",
+    "number": "15",
+    "category": "Applied Project",
+    "title": "Capstone: End-to-End DevOps Pipeline",
+    "accent": "#172033",
+    "icon": "https://api.iconify.design/lucide/rocket.svg",
+    "description": "Bring the curriculum together in a practical pipeline from Git commit to secure, observable Kubernetes delivery.",
+    "lessons": [
+      {
+        "title": "Capstone architecture",
+        "id": ""
+      },
+      {
+        "title": "CI to container registry",
+        "id": ""
+      },
+      {
+        "title": "Kubernetes with Helm and Argo CD",
+        "id": ""
+      },
+      {
+        "title": "Observability and assessment",
+        "id": ""
+      }
+    ]
+  }
+]

@@ -1,13 +1,14 @@
 {
-  "name": "scalevo-learning-workspace",
-  "version": "2.0.0",
+  "name": "devops-learning-workspace",
+  "version": "1.0.0",
   "private": true,
-  "description": "Scalevo DevOps learning workspace",
-  "type": "commonjs",
-  "packageManager": "npm@10.8.2",
+  "description": "Authenticated DevOps learning workspace with admin content management",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "check": "node --check server.js && node --check public/app.js"
+    "check": "node --check server.js"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.5"
   }
 }
