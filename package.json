@@ -1,0 +1,13 @@
+{
+  "name": "scalevo-learning-workspace",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Scalevo DevOps learning workspace",
+  "type": "commonjs",
+  "packageManager": "npm@10.8.2",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  }
+}
