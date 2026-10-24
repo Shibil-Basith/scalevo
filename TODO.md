@@ -40,6 +40,8 @@
 - [x] List modules in ascending numeric module-number order in both the server content API and the client catalog/dashboard.
 - [x] Modernize the site typography with Manrope body text and Space Grotesk display headings.
 - [x] Refine responsive spacing, logo sizing, lesson-row controls, and login layout for small devices.
+- [x] Embed the Scalevo monogram directly in the HTML so the deployed EC2 app does not depend on a separate logo asset route.
+- [x] Label dashboard counts as unlocked recordings/videos so locked modules are not mistaken for missing content.
 - [x] Let admins drag lesson rows to reorder videos within the selected module, persist the ordered lesson IDs transactionally, and restore the order after refresh.
 - [x] Add compact up/down reorder controls for touch and small-screen admin use where drag gestures are not reliable.
 - [x] Prevent unique-position collisions during swaps by moving lesson rows through a temporary order range inside the transaction.
