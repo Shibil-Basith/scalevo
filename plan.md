@@ -1,69 +1,54 @@
 # Scalevo Learning Workspace — implementation plan
 
-## Scope
-Build a preview-ready Scalevo DevOps learning workspace from the supplied repository, preserving its light glass dashboard language while making the product deployable for real learners and administrators. Learners receive only the learner workspace; administrators receive a separate protected management workspace.
-
-## Reference audit
-The supplied repository is a compact Node HTTP server plus a static client. It already establishes the Scalevo visual system, Google Identity Services entry point, candidate/admin sign-in split, MySQL persistence, module access requests, progress tracking, recording management, and candidate progress reporting. The managed project keeps that architecture and expands the seed catalog to 15 modules with official Devicon/Iconify assets where available.
+## Scope and source of truth
+Update the existing Scalevo DevOps learning platform from the user-provided repository without cloning the Softr template or removing existing features. The production server serves the root `index.html` and `server.js`; the `public/` directory is a legacy prototype and is not the production client. Preserve the current Google-verified learner login, separate administrator authentication, 15-module learning catalog, approval-gated module and batch access, recordings, documentation, progress, and admin management workflows.
 
 ## Implementation approach
-- Use a dependency-light Node HTTP server on port 3000 with MySQL-backed users, sessions, module access requests, progress, modules, recordings, and documentation.
-- Preserve Google sign-in for learners, requiring a verified Gmail credential plus full name and phone number. Keep administrator authentication separate with the requested development defaults `admin` / `admin123`, overridable by `ADMIN_USERNAME` and `ADMIN_PASSWORD` in deployment configuration.
-- Route the client by authenticated role: a learner sees the course library, access states, recordings, progress, and published documentation; an admin sees the protected admin workspace, access-request decisions, user progress, module editing, recording editing/reordering, and markdown documentation editing.
-- Keep documentation empty by default. Administrators choose a module and recording/topic, paste markdown, and save it through `/api/admin/modules/:moduleId/documentation/:topicSlug`; approved learners see only published notes.
-- Add a mobile navigation drawer to the authenticated header so learner/admin navigation remains usable on phones, tablets, narrow laptops, and desktop widths.
-- Keep the no-Google-Drive-branding player treatment in the learner UI while retaining the repository’s recording ID model for the admin-managed lesson library.
+- Refine the root app into a premium, polished learning portal inspired by the reference's clear course discovery and structured lesson organization, while keeping Scalevo branding and the existing information architecture.
+- Make `/` learner-only sign-in. Use `/admin` as the administrator sign-in entry and protected admin workspace; do not expose an admin-login mode or tab on the home page. Preserve deep admin routes and server-side API authorization.
+- Add an administrator-only `DELETE /api/admin/users/:id` endpoint. In one database transaction, remove the learner's sessions, progress, module access requests, batch requests, and user record. Add an explicit confirmation before the admin UI sends the deletion request.
+- Use Plyr around an HTML5 video element backed by a same-origin `/api/lessons/:lessonId/video` stream. First mint a short-lived, lesson-scoped media token through the authenticated API, so the browser's media request does not rely on Preview iframe cookies. Bind and revoke grants with the application session; recheck current admin or approved-learner/batch access on the stream, forward HTTP Range requests to Google Drive, and stream inline without a Drive redirect. Keep only in-player controls and show a clear preparation or playback error.
+- Keep all changes in the root production client/server, deployment files, route manifest and these project notes. Do not migrate the legacy `public/` prototype into the production path.
 
 ## Project structure
-- `server.js`: database schema/bootstrap, auth sessions, Google verification, learner/admin APIs, markdown documentation API, static serving, and deep-route fallback.
-- `index.html`: responsive Scalevo client, login flows, learner module view, admin workspace, recording player, mobile navigation, and documentation editor.
-- `content-seed.json`: 15-module curriculum seed; real recording IDs are retained where available and other lesson slots remain pending for admin configuration.
-- `manus-routes.json`: managed route manifest.
-- `scalevo-mark.svg`: reusable S/V monogram.
-- `app.config.ts`: managed project logo metadata.
-- `Dockerfile` / `package.json`: production container and dependency-light runtime.
-- `TODO.md`: outcome-level delivery criteria and status.
+- `server.js`: Node HTTP API, MySQL schema/bootstrap, authentication and sessions, role-protected learner/admin APIs, and root static serving.
+- `index.html`: production Scalevo UI, responsive course catalog, learner workspace, dedicated `/admin` sign-in, admin pages, route handling, and Plyr lesson playback.
+- `content-seed.json`: initial DevOps course and lesson catalog.
+- `manus-routes.json`: route manifest for the served website, including learner and administrator paths.
+- `scalevo-*.svg` / `scalevo-mark.svg`: existing Scalevo wordmarks and marks used by the UI.
+- `Dockerfile`, `package.json`, and `package-lock.json`: production Node container and dependencies.
+- `public/`: legacy prototype, not served by the production server.
+- `TODO.md`: outcome criteria for the requested changes and prior platform behaviors.
 
 ## Design direction
-### Candidate styles considered
-- Probability 0.07 — “Swiss dashboard minimalism”: strict grids, quiet color, editorial labels.
-- Probability 0.06 — “Neo-brutalist lab notebook”: bolder borders, harder contrast, utilitarian controls.
-- Probability 0.05 — “Soft glass command center”: translucent cards, calm canvas, vivid learning progress.
+**Design Movement:** Premium editorial learning portal, using the supplied online-classes template as broad inspiration rather than a visual clone.
 
-### Chosen style: Soft glass command center
-**Design Movement:** Contemporary product dashboard with soft glassmorphism and editorial learning cues.
+**Core Principles:** Make the course library feel curated; keep progress and access states legible; give high-value actions clear hierarchy; preserve a calm, responsive learner workspace.
 
-**Core Principles:** Make progress visible; keep navigation calm and obvious; use color for orientation, not decoration; make dense curriculum approachable.
+**Color Philosophy:** A warm, pale neutral canvas and deep ink surfaces make the portal feel considered and focused. Scalevo blue remains the signature accent for learning actions, with restrained emerald and amber states for completion and review.
 
-**Color Philosophy:** A cool off-white canvas and translucent surfaces create a private-feeling study room. Scalevo blue and violet mark movement; emerald, amber, and rose communicate status.
+**Layout Paradigm:** Spacious course discovery and focused course details, with the authenticated content area and admin workflows organized into distinct, easy-to-scan sections.
 
-**Layout Paradigm:** A responsive wide workspace with asymmetric hero copy, module cards, focused module detail views, and admin sections that become single-column on narrow screens.
+**Signature Elements:** Scalevo's existing monogram and wordmark; refined course cards with clear module identity and progress; a dark, focused in-app video stage.
 
-**Signature Elements:** Gradient S/V monogram, uppercase micro-labels, module-accent progress bars, and deliberate status pills.
+**Interaction Philosophy:** Preserve existing learner and admin behavior. Make access state, route destination, deletion confirmation, and video playback status explicit.
 
-**Interaction Philosophy:** Every primary action is explicit and reversible. Login mode, access request, admin approval, recording management, markdown save, and mobile navigation provide immediate feedback.
+**Animation:** Use short, restrained transitions on cards and controls; honor reduced-motion preferences.
 
-**Animation:** Use short card-lift and progress transitions, with reduced-motion support.
+**Typography System:** Preserve the existing Manrope UI and Space Grotesk display pairing, improving rhythm and hierarchy rather than introducing a new brand typeface.
 
-**Typography System:** Manrope for UI/body; Space Grotesk for headlines and metrics; small uppercase eyebrows for orientation.
+**Brand Essence:** A focused DevOps learning workspace that helps learners build practical confidence one session at a time. Personality: precise, encouraging, quietly technical.
 
-**Brand Essence:** A focused DevOps learning workspace for practical momentum. Personality: precise, encouraging, quietly technical.
+**Brand Voice:** Direct and useful. Examples: “Build DevOps skills, step by step.” / “Continue your learning path.”
 
-**Brand Voice:** Direct and useful: “Learn one focused recording at a time.” / “Documentation has not been published yet.”
+**Wordmark & Logo:** Preserve the supplied Scalevo wordmark and monogram.
 
-**Wordmark & Logo:** Use the supplied transparent S/V monogram with the Scalevo wordmark.
+**Signature Brand Color:** Scalevo blue `#3568f5`, paired with deep ink and restrained violet accents.
 
-**Signature Brand Color:** Scalevo blue `#3568f5`, balanced by indigo `#4f46e5` and violet `#7c3aed`.
+## Manus preview scope and data boundary
+The user approved an isolated Manus preview of the updated production app. Copy the existing root `index.html`, `server.js`, content seed, route manifest, deployment files, and Scalevo brand assets into the new Manus Webdev project `scalevo-ui`; do not connect or push to the supplied GitHub repository. Run the existing Node server on the configured Preview port (`PORT`, default `3000`) and serve the `/` learner sign-in and `/admin` administrator sign-in routes through the existing SPA fallback.
 
-## Build and delivery workflow
-1. Seed the database schema and curriculum, then serve the authenticated client and API.
-2. Start the Node service and verify `/`, `/api/health`, `/api/auth/me`, and `/manus-routes.json`.
-3. Validate server and embedded client syntax, the requested admin credential flow, protected admin content, 15-module seed, empty documentation state, and responsive/mobile hooks.
-4. Commit and push intended files to the managed project’s main branch so the checkpoint is recorded.
-5. Keep publication separate from the checkpoint unless explicitly requested and configured.
+The preview uses its own newly provisioned project-scoped managed MySQL database. Existing production learner records, batches, progress, sessions, secrets, and application data are not copied. The public Google OAuth client ID supplied by the user for this preview is passed only into the preview server process; it is not saved to source or project configuration. The server may initialize the app schema and curriculum within the empty preview project's database. Do not publish the preview project or change the live `scalevo.space` site. Preserve normal sign-in behavior and do not invent an authenticated learner session.
 
-## Focused admin information architecture update
-The authenticated workspace now uses URL-backed History API routes instead of one congested admin render: `/admin` for overview, `/admin/modules/new` for module creation, `/admin/modules/edit` for module identity changes, `/admin/recordings` for recording CRUD and ordering, `/admin/documentation` for Markdown topic publishing, `/admin/access-requests` for access decisions, and `/admin/users` for learner progress. Learner dashboard and module details use `/dashboard`, `/modules`, and `/modules/:moduleId`. The client reapplies the active URL after asynchronous workspace bootstrap so deep links, refreshes, and browser Back/Forward remain stable.
-
-## Batch access update
-Batch access is now persistent and role-aware. Administrators manage cohorts through `/admin/batches`, `/admin/batches/new`, `/admin/batches/edit`, and `/admin/batch-requests`; learners use `/batches` or the compact `Get batch access` header action to select a published batch and submit a request. Administrators can approve or deny those requests, and the batch cards show status, schedule, dates, member count, and pending request count. Each batch editor includes a module checklist stored in `batch_modules`; approved members automatically receive access to the selected modules.
+## Delivery workflow
+Implement against the actual production root client/server; validate syntax and static route declarations; avoid production database writes or deletions during validation. The repository is public, but no authenticated GitHub write access is configured in this session, so remote pushes or production publication require a separately authorized path. Keep code changes local until a permitted repository handoff is available.

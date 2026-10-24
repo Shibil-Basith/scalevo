@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const mysql = require("mysql2/promise");
+const { Readable } = require("node:stream");
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
@@ -19,6 +20,58 @@ function json(res, status, body) {
 function html(res, status, body) {
   res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
   res.end(body);
+}
+
+async function streamGoogleDriveVideo(req, res, driveId) {
+  const upstreamHeaders = {};
+  if (req.headers.range) upstreamHeaders.Range = req.headers.range;
+  if (req.headers["if-range"]) upstreamHeaders["If-Range"] = req.headers["if-range"];
+
+  const controller = new AbortController();
+  const upstream = await fetch(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveId)}`, {
+    method: req.method,
+    headers: upstreamHeaders,
+    redirect: "follow",
+    signal: controller.signal,
+  });
+  const upstreamType = upstream.headers.get("content-type") || "";
+  const contentType = /^video\//i.test(upstreamType)
+    ? upstreamType
+    : /^application\/(?:octet-stream|binary)/i.test(upstreamType) ? "video/mp4" : "";
+  const headers = {
+    "Content-Type": contentType || "application/json; charset=utf-8",
+    "Accept-Ranges": upstream.headers.get("accept-ranges") || "bytes",
+    "Cache-Control": "private, no-store",
+    "Content-Disposition": "inline",
+    "X-Content-Type-Options": "nosniff",
+  };
+  const length = upstream.headers.get("content-length");
+  const range = upstream.headers.get("content-range");
+  if (length) headers["Content-Length"] = length;
+  if (range) headers["Content-Range"] = range;
+
+  if (upstream.status === 416) {
+    res.writeHead(416, headers);
+    res.end();
+    await upstream.body?.cancel().catch(() => {});
+    return;
+  }
+  if (!upstream.ok || !contentType) {
+    await upstream.body?.cancel().catch(() => {});
+    return json(res, 502, { error: "This video is unavailable. Check that the Google Drive file is shared with the intended viewer." });
+  }
+
+  res.writeHead(upstream.status, headers);
+  if (req.method === "HEAD" || !upstream.body) {
+    await upstream.body?.cancel().catch(() => {});
+    res.end();
+    return;
+  }
+
+  res.on("close", () => { if (!res.writableEnded) controller.abort(); });
+  const stream = Readable.fromWeb(upstream.body);
+  stream.on("error", () => { if (!res.destroyed) res.destroy(); });
+  stream.pipe(res);
 }
 
 function parseCookies(req) {
@@ -79,6 +132,16 @@ async function ensureSchema() {
       expires_at DATETIME NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       INDEX (user_id), INDEX (expires_at)
+    )`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS media_tokens (
+      token_hash CHAR(64) NOT NULL PRIMARY KEY,
+      session_hash CHAR(64) NOT NULL,
+      lesson_id BIGINT UNSIGNED NOT NULL,
+      user_id BIGINT UNSIGNED NULL,
+      role VARCHAR(20) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX (session_hash), INDEX (user_id), INDEX (lesson_id), INDEX (expires_at)
     )`);
     await connection.query(`CREATE TABLE IF NOT EXISTS progress (
       user_id BIGINT UNSIGNED NOT NULL,
@@ -189,6 +252,18 @@ function requireAdmin(session) {
   return session && session.role === "admin";
 }
 
+async function hasLessonAccess(database, role, userId, moduleId) {
+  if (role === "admin") return true;
+  if (!userId) return false;
+  const [[access]] = await database.query(
+    `SELECT EXISTS(SELECT 1 FROM module_access_requests WHERE user_id=? AND module_id=? AND status='approved')
+      OR EXISTS(SELECT 1 FROM batch_requests br JOIN batch_modules bm ON bm.batch_id=br.batch_id
+        WHERE br.user_id=? AND br.status='approved' AND bm.module_id=?) AS allowed`,
+    [userId, moduleId, userId, moduleId],
+  );
+  return Number(access.allowed) === 1;
+}
+
 async function createSession(res, req, userId, role, extra = {}) {
   const token = crypto.randomBytes(32).toString("hex");
   await (await db()).query("INSERT INTO sessions (token, user_id, role, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))", [token, userId || null, role]);
@@ -230,7 +305,16 @@ async function api(req, res, pathname) {
     throw error;
   }
   if (req.method === "GET" && pathname === "/api/auth/me") return json(res, 200, { authenticated: Boolean(session), user: session ? { role: session.role, email: session.email || null, name: session.full_name || "Administrator", phone: session.phone || "" } : null });
-  if (req.method === "POST" && pathname === "/api/auth/logout") { if (session) await (await db()).query("DELETE FROM sessions WHERE token=?", [session.token]); clearSession(res, req); return json(res, 200, { ok: true }); }
+  if (req.method === "POST" && pathname === "/api/auth/logout") {
+    if (session) {
+      const database = await db();
+      const sessionHash = crypto.createHash("sha256").update(session.token).digest("hex");
+      await database.query("DELETE FROM media_tokens WHERE session_hash=?", [sessionHash]);
+      await database.query("DELETE FROM sessions WHERE token=?", [session.token]);
+    }
+    clearSession(res, req);
+    return json(res, 200, { ok: true });
+  }
   if (req.method === "POST" && pathname === "/api/auth/admin") {
     const input = await body(req);
     const adminUsername = process.env.ADMIN_USERNAME || "admin";
@@ -250,6 +334,45 @@ async function api(req, res, pathname) {
     const [[user]] = await database.query("SELECT id, email, full_name, phone FROM users WHERE google_sub=? LIMIT 1", [profile.sub]);
     await createSession(res, req, user.id, "user");
     return json(res, 200, { ok: true, user: { role: "user", email: user.email, name: user.full_name, phone: user.phone } });
+  }
+  const videoTokenMatch = pathname.match(/^\/api\/lessons\/([0-9]+)\/video-token$/);
+  if (req.method === "POST" && videoTokenMatch) {
+    if (!requireUser(session)) return json(res, 401, { error: "Login required to play this lesson" });
+    const database = await db();
+    const [[lesson]] = await database.query("SELECT id, module_id, drive_id FROM content_lessons WHERE id=? LIMIT 1", [videoTokenMatch[1]]);
+    if (!lesson) return json(res, 404, { error: "Lesson not found" });
+    if (!lesson.drive_id) return json(res, 404, { error: "No video has been added to this lesson yet" });
+    if (!(await hasLessonAccess(database, session.role, session.user_id, lesson.module_id))) {
+      return json(res, 403, { error: "Approved module access is required" });
+    }
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const sessionHash = crypto.createHash("sha256").update(session.token).digest("hex");
+    await database.query("DELETE FROM media_tokens WHERE expires_at <= NOW()");
+    await database.query(
+      "INSERT INTO media_tokens (token_hash, session_hash, lesson_id, user_id, role, expires_at) VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))",
+      [tokenHash, sessionHash, lesson.id, session.user_id || null, session.role],
+    );
+    return json(res, 200, { url: `/api/lessons/${lesson.id}/video?token=${token}`, expiresIn: 3600 });
+  }
+  const lessonVideoMatch = pathname.match(/^\/api\/lessons\/([0-9]+)\/video$/);
+  if (lessonVideoMatch && ["GET", "HEAD"].includes(req.method)) {
+    const token = new URL(req.url, "http://localhost").searchParams.get("token") || "";
+    if (!/^[a-f0-9]{64}$/i.test(token)) return json(res, 401, { error: "Reopen the lesson to prepare a secure video link" });
+    const database = await db();
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const [[grant]] = await database.query(
+      "SELECT mt.lesson_id AS lessonId, mt.user_id AS userId, mt.role FROM media_tokens mt JOIN sessions s ON SHA2(s.token, 256)=mt.session_hash AND s.expires_at > NOW() WHERE mt.token_hash=? AND mt.lesson_id=? AND mt.expires_at > NOW() LIMIT 1",
+      [tokenHash, lessonVideoMatch[1]],
+    );
+    if (!grant) return json(res, 401, { error: "This secure video link has expired; reopen the lesson" });
+    const [[lesson]] = await database.query("SELECT id, module_id, drive_id FROM content_lessons WHERE id=? LIMIT 1", [lessonVideoMatch[1]]);
+    if (!lesson) return json(res, 404, { error: "Lesson not found" });
+    if (!lesson.drive_id) return json(res, 404, { error: "No video has been added to this lesson yet" });
+    if (!(await hasLessonAccess(database, grant.role, grant.userId, lesson.module_id))) {
+      return json(res, 403, { error: "Approved module access is required" });
+    }
+    return streamGoogleDriveVideo(req, res, lesson.drive_id);
   }
   const accessRequestMatch = pathname.match(/^\/api\/modules\/([^/]+)\/access-request$/);
   if (req.method === "POST" && accessRequestMatch) {
@@ -281,6 +404,32 @@ async function api(req, res, pathname) {
     const [users] = await (await db()).query(`SELECT u.id, u.email, u.full_name AS name, u.phone, u.created_at AS createdAt, u.last_login_at AS lastLoginAt, COUNT(p.lesson_title) AS completed FROM users u LEFT JOIN progress p ON p.user_id=u.id GROUP BY u.id ORDER BY u.last_login_at DESC`);
     const [totals] = await (await db()).query("SELECT COUNT(*) AS total FROM content_lessons");
     return json(res, 200, { users, totalLessons: Number(totals[0].total) });
+  }
+  const adminUserMatch = pathname.match(/^\/api\/admin\/users\/([0-9]+)$/);
+  if (adminUserMatch && req.method === "DELETE") {
+    const connection = await (await db()).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [users] = await connection.query("SELECT id FROM users WHERE id=? FOR UPDATE", [adminUserMatch[1]]);
+      if (!users.length) {
+        await connection.rollback();
+        return json(res, 404, { error: "Learner not found" });
+      }
+      const userId = users[0].id;
+      await connection.query("DELETE FROM sessions WHERE user_id=?", [userId]);
+      await connection.query("DELETE FROM media_tokens WHERE user_id=?", [userId]);
+      await connection.query("DELETE FROM progress WHERE user_id=?", [userId]);
+      await connection.query("DELETE FROM module_access_requests WHERE user_id=?", [userId]);
+      await connection.query("DELETE FROM batch_requests WHERE user_id=?", [userId]);
+      await connection.query("DELETE FROM users WHERE id=?", [userId]);
+      await connection.commit();
+      return json(res, 200, { ok: true });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
   const documentationMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/documentation\/([^/]+)$/);
   if (documentationMatch && req.method === "PATCH") {
