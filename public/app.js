@@ -22,9 +22,9 @@ const ICONS = {
 };
 
 const batches = [
-  { id: 'platform-26', name: 'Platform Engineering · 2026', status: 'Active', start: '2026-09-14', end: '2026-12-18', schedule: 'Mon–Thu · 7:00 PM–8:30 PM', timezone: 'IST (UTC+5:30)', modules: 8, members: 28, description: 'A guided evening cohort for building reliable delivery habits from Linux fundamentals through GitOps.' },
-  { id: 'cloud-native-27', name: 'Cloud Native Foundations · 2027', status: 'Open for requests', start: '2027-01-11', end: '2027-04-09', schedule: 'Sat · 10:00 AM–12:00 PM', timezone: 'IST (UTC+5:30)', modules: 10, members: 16, description: 'A weekend pathway through cloud, containers, Kubernetes, and infrastructure as code.' },
-  { id: 'secure-delivery', name: 'Secure Delivery Lab', status: 'Draft', start: '2027-02-08', end: '2027-03-19', schedule: 'Tue–Fri · 6:30 PM–7:45 PM', timezone: 'IST (UTC+5:30)', modules: 5, members: 0, description: 'A focused lab for DevSecOps, observability, and capstone delivery patterns.' },
+  { id: 'platform-26', name: 'Platform Engineering · 2026', status: 'Active', start: '2026-09-14', end: '2026-12-18', schedule: 'Mon–Thu · 7:00 PM–8:30 PM', timezone: 'IST (UTC+5:30)', modules: 8, members: null, description: 'A guided evening cohort for building reliable delivery habits from Linux fundamentals through GitOps.' },
+  { id: 'cloud-native-27', name: 'Cloud Native Foundations · 2027', status: 'Open for requests', start: '2027-01-11', end: '2027-04-09', schedule: 'Sat · 10:00 AM–12:00 PM', timezone: 'IST (UTC+5:30)', modules: 10, members: null, description: 'A weekend pathway through cloud, containers, Kubernetes, and infrastructure as code.' },
+  { id: 'secure-delivery', name: 'Secure Delivery Lab', status: 'Draft', start: '2027-02-08', end: '2027-03-19', schedule: 'Tue–Fri · 6:30 PM–7:45 PM', timezone: 'IST (UTC+5:30)', modules: 5, members: null, description: 'A focused lab for DevSecOps, observability, and capstone delivery patterns.' },
 ];
 
 const state = {
@@ -76,7 +76,7 @@ const isUnlocked = (module) => effectiveAccess(module) === 'approved';
 function moduleIcon(module, size = '') {
   const asset = ICONS[module.icon];
   if (asset) return `<span class="module-icon" style="--accent:${module.accent}"><img src="${asset}" alt="${escapeHtml(module.title)} tool icon" class="icon-img" /></span>`;
-  const lucide = module.icon === 'shield' ? 'shield-check' : module.icon === 'rocket' ? 'rocket' : 'workflow';
+  const lucide = module.icon === 'shield' ? 'shield-check' : module.icon === 'rocket' ? 'rocket' : module.icon === 'brain-circuit' ? 'brain-circuit' : 'workflow';
   return `<span class="module-icon" style="--accent:${module.accent}">${icon(lucide, size || '')}</span>`;
 }
 
@@ -103,10 +103,10 @@ function appShell(content) {
   const active = activeNav(path);
   return `<div class="app-shell shell-bg">
     <aside class="sidebar" id="sidebar">
-      <a class="brand" href="/dashboard" data-route="/dashboard" aria-label="Scalevo dashboard">
+      <div class="sidebar-head"><a class="brand" href="/dashboard" data-route="/dashboard" aria-label="Scalevo dashboard">
         <img src="/scalevo-mark.svg" alt="Scalevo" />
         <span class="brand-wordmark">Scalevo<small>DevOps learning workspace</small></span>
-      </a>
+      </a><button class="sidebar-close" data-toggle-sidebar aria-label="Close navigation">${icon('x')}</button></div>
       <div class="nav-label">Workspace</div>
       <nav class="nav-list" aria-label="Primary navigation">
         ${navItem('/dashboard', 'Dashboard', 'layout-dashboard', active === 'dashboard')}
@@ -124,7 +124,7 @@ function appShell(content) {
         <div><strong>Study rhythm</strong><p>One concept, one focused session, then a small win.</p></div>
       </div>
       <div class="profile-mini">
-        <span class="avatar">AM</span><div><strong>Aarav Menon</strong><span>Learner · Platform Engineering</span></div>
+        <span class="avatar">?</span><div><strong>Your account</strong><span>Sign in to sync progress</span></div>
       </div>
     </aside>
     <main class="main">
@@ -133,7 +133,7 @@ function appShell(content) {
           <button class="mobile-menu" data-toggle-sidebar aria-label="Open navigation">${icon('menu')}</button>
           <div class="breadcrumbs">${icon('chevron-right')}<strong>${escapeHtml(pageTitle(path))}</strong></div>
         </div>
-        <div class="top-actions"><span class="status-pill"><span class="status-dot"></span> Workspace online</span><span class="avatar" aria-label="Aarav Menon">AM</span></div>
+        <div class="top-actions"><span class="status-pill"><span class="status-dot"></span> Workspace online</span><span class="avatar" aria-label="Account">?</span></div>
       </header>
       ${content}
     </main>
@@ -220,7 +220,7 @@ function renderLesson(module, title, index) {
 function renderDocumentation(module) {
   if (!isUnlocked(module)) return accessPanel(module);
   const parts = currentPath().split('/').filter(Boolean);
-  const slug = parts[4] || module.topics[0]?.slug;
+  const slug = parts[3] || module.topics[0]?.slug;
   const topic = module.topics.find((item) => item.slug === slug) || module.topics[0];
   const index = Math.max(0, module.topics.findIndex((item) => item.slug === topic.slug));
   const topicSearch = state.docSearch.trim().toLowerCase();
@@ -234,23 +234,20 @@ function renderBatches() {
 function renderBatchCard(batch) {
   const status = state.batchRequests[batch.id] || (batch.id === 'platform-26' ? 'Approved member' : 'Not requested');
   const isRequested = status === 'Pending review';
-  return `<section class="glass batch-card"><div class="batch-card-head"><div><div class="eyebrow">${escapeHtml(batch.status)}</div><h3>${escapeHtml(batch.name)}</h3><p>${escapeHtml(batch.description)}</p></div><span class="badge ${batch.status === 'Active' ? 'approved' : batch.status === 'Open for requests' ? 'pending' : 'locked'}">${escapeHtml(batch.status)}</span></div><div class="batch-meta"><div><small>Dates</small><strong>${formatDate(batch.start)}<br />${formatDate(batch.end)}</strong></div><div><small>Schedule</small><strong>${escapeHtml(batch.schedule)}</strong></div><div><small>Modules</small><strong>${batch.modules} assigned · ${batch.members} learners</strong></div></div><div class="batch-footer"><span>${status === 'Approved member' ? `${icon('badge-check')} ${status}` : status}</span>${batch.status === 'Open for requests' ? (isRequested ? '<span class="badge pending">Pending review</span>' : `<button class="button secondary" data-batch-request="${batch.id}">${icon('send')} Request access</button>`) : batch.status === 'Active' ? '<span class="badge approved">My batch</span>' : '<span class="badge locked">Coming later</span>'}</div></section>`;
+  return `<section class="glass batch-card"><div class="batch-card-head"><div><div class="eyebrow">${escapeHtml(batch.status)}</div><h3>${escapeHtml(batch.name)}</h3><p>${escapeHtml(batch.description)}</p></div><span class="badge ${batch.status === 'Active' ? 'approved' : batch.status === 'Open for requests' ? 'pending' : 'locked'}">${escapeHtml(batch.status)}</span></div><div class="batch-meta"><div><small>Dates</small><strong>${formatDate(batch.start)}<br />${formatDate(batch.end)}</strong></div><div><small>Schedule</small><strong>${escapeHtml(batch.schedule)}</strong></div><div><small>Modules</small><strong>${batch.modules} assigned · ${batch.members ?? 'Users after setup'}</strong></div></div><div class="batch-footer"><span>${status === 'Approved member' ? `${icon('badge-check')} ${status}` : status}</span>${batch.status === 'Open for requests' ? (isRequested ? '<span class="badge pending">Pending review</span>' : `<button class="button secondary" data-batch-request="${batch.id}">${icon('send')} Request access</button>`) : batch.status === 'Active' ? '<span class="badge approved">My batch</span>' : '<span class="badge locked">Coming later</span>'}</div></section>`;
 }
 
 function renderAdmin() {
-  const requests = [
-    { name: 'Meera Shah', email: 'meera.shah@example.com', batch: 'Cloud Native Foundations · 2027', status: 'Pending', when: '12 min ago' },
-    { name: 'Rohan Iyer', email: 'rohan.iyer@example.com', batch: 'Secure Delivery Lab', status: 'Pending', when: '1 hr ago' },
-    { name: 'Nisha Thomas', email: 'nisha.thomas@example.com', batch: 'Platform Engineering · 2026', status: 'Approved', when: 'Yesterday' },
-  ];
+  const requests = [];
   const adminAccess = currentPath() === '/admin/access-requests';
-  return appShell(`<div class="page"><section class="hero" style="padding-bottom:22px;"><div class="hero-copy"><div class="eyebrow">Admin workspace</div><h1>Make access <em>deliberate.</em></h1><p>Review batch requests, keep module assignments clear, and make the learner’s next step obvious.</p></div><div class="hero-action"><button class="button purple" data-admin-action="create">${icon('plus')} Create batch</button></div></section><div class="admin-tabs"><a class="admin-tab ${!adminAccess ? 'active' : ''}" href="/admin/batches" data-route="/admin/batches">Batch management</a><a class="admin-tab ${adminAccess ? 'active' : ''}" href="/admin/access-requests" data-route="/admin/access-requests">Access requests <span class="badge pending" style="margin-left:4px;padding:4px 6px;">2</span></a></div>${adminAccess ? renderAdminRequests(requests) : renderAdminBatches()}</div>`);
+  return appShell(`<div class="page"><section class="hero" style="padding-bottom:22px;"><div class="hero-copy"><div class="eyebrow">Admin workspace</div><h1>Make access <em>deliberate.</em></h1><p>Review batch requests, keep module assignments clear, and make the learner’s next step obvious.</p></div><div class="hero-action"><button class="button purple" data-admin-action="create">${icon('plus')} Create batch</button></div></section><div class="admin-tabs"><a class="admin-tab ${!adminAccess ? 'active' : ''}" href="/admin/batches" data-route="/admin/batches">Batch management</a><a class="admin-tab ${adminAccess ? 'active' : ''}" href="/admin/access-requests" data-route="/admin/access-requests">Access requests</a></div>${adminAccess ? renderAdminRequests(requests) : renderAdminBatches()}</div>`);
 }
 function renderAdminBatches() {
-  return `<div class="dashboard-grid"><section class="glass panel"><div class="panel-head"><div><div class="eyebrow">Programmes</div><h3>Batch management</h3><p>Assign modules once, then let approved members inherit access.</p></div><span class="status-pill">${batches.length} records</span></div><div class="list">${batches.map((batch) => `<div class="list-row"><span class="list-icon" style="color:${batch.status === 'Active' ? '#16a34a' : '#3568f5'};background:${batch.status === 'Active' ? '#eaf9ef' : '#edf3ff'};">${icon(batch.status === 'Active' ? 'radio' : 'calendar-days')}</span><main><strong>${escapeHtml(batch.name)}</strong><p>${batch.modules} modules · ${batch.members} members · ${escapeHtml(batch.schedule)}</p></main><span class="badge ${batch.status === 'Active' ? 'approved' : batch.status === 'Open for requests' ? 'pending' : 'locked'}">${escapeHtml(batch.status)}</span><button class="button ghost" data-admin-action="edit">${icon('pencil')}</button></div>`).join('')}</div></section><aside class="aside-stack"><section class="glass panel"><div class="eyebrow">Access model</div><h3>Effective access</h3><p>Direct grants and approved batch memberships are evaluated together. Pending or rejected requests grant no module access.</p><div class="side-list"><div>${icon('check-circle-2')} Approved membership</div><div>${icon('link-2')} Batch → module mapping</div><div>${icon('shield-check')} Server-side authorization</div></div></section><section class="glass panel"><div class="eyebrow">Audit note</div><h3>Changes stay explainable</h3><p>Every approval, removal, and module assignment should record who acted, when it happened, and why.</p></section></aside></div>`;
+  return `<div class="dashboard-grid"><section class="glass panel"><div class="panel-head"><div><div class="eyebrow">Programmes</div><h3>Batch management</h3><p>Assign modules once, then let approved members inherit access.</p></div><span class="status-pill">${batches.length} records</span></div><div class="list">${batches.map((batch) => `<div class="list-row"><span class="list-icon" style="color:${batch.status === 'Active' ? '#16a34a' : '#3568f5'};background:${batch.status === 'Active' ? '#eaf9ef' : '#edf3ff'};">${icon(batch.status === 'Active' ? 'radio' : 'calendar-days')}</span><main><strong>${escapeHtml(batch.name)}</strong><p>${batch.modules} modules · ${batch.members ?? 'Users after setup'} · ${escapeHtml(batch.schedule)}</p></main><span class="badge ${batch.status === 'Active' ? 'approved' : batch.status === 'Open for requests' ? 'pending' : 'locked'}">${escapeHtml(batch.status)}</span><button class="button ghost" data-admin-action="edit">${icon('pencil')}</button></div>`).join('')}</div></section><aside class="aside-stack"><section class="glass panel"><div class="eyebrow">Access model</div><h3>Effective access</h3><p>Direct grants and approved batch memberships are evaluated together. Pending or rejected requests grant no module access.</p><div class="side-list"><div>${icon('check-circle-2')} Approved membership</div><div>${icon('link-2')} Batch → module mapping</div><div>${icon('shield-check')} Server-side authorization</div></div></section><section class="glass panel"><div class="eyebrow">Audit note</div><h3>Changes stay explainable</h3><p>Every approval, removal, and module assignment should record who acted, when it happened, and why.</p></section></aside></div>`;
 }
 function renderAdminRequests(requests) {
-  return `<section class="glass panel"><div class="panel-head"><div><div class="eyebrow">Review queue</div><h3>Pending batch requests</h3><p>Approve only when the learner should inherit the assigned module access.</p></div><span class="badge pending">2 pending</span></div><div style="margin-top:19px;">${requests.map((request, index) => `<div class="request-row"><span class="avatar" style="background:${index === 0 ? 'linear-gradient(135deg,#3568f5,#4f46e5)' : 'linear-gradient(135deg,#f59e0b,#ef4444)'};">${request.name.split(' ').map((x) => x[0]).join('')}</span><main><strong>${escapeHtml(request.name)} <span style="color:#9aa7ba;font-weight:600;">requested access to</span> ${escapeHtml(request.batch)}</strong><p>${escapeHtml(request.email)} · ${request.when}</p></main><span class="badge ${request.status.toLowerCase() === 'pending' ? 'pending' : 'approved'}">${request.status}</span>${request.status === 'Pending' ? `<div class="request-actions"><button class="button green" data-admin-action="approve">${icon('check')} Approve</button><button class="button secondary" data-admin-action="reject">${icon('x')} Reject</button></div>` : ''}</div>`).join('')}</div></section>`;
+  const pending = requests.filter((request) => request.status === 'Pending').length;
+  return `<section class="glass panel"><div class="panel-head"><div><div class="eyebrow">Review queue</div><h3>Pending batch requests</h3><p>Real learner requests will appear here after authentication and batch setup are connected.</p></div><span class="badge ${pending ? 'pending' : 'locked'}">${pending} pending</span></div><div style="margin-top:19px;">${pending ? requests.map((request, index) => `<div class="request-row"><span class="avatar" style="background:${index === 0 ? 'linear-gradient(135deg,#3568f5,#4f46e5)' : 'linear-gradient(135deg,#f59e0b,#ef4444)'};">${request.name.split(' ').map((x) => x[0]).join('')}</span><main><strong>${escapeHtml(request.name)} <span style="color:#9aa7ba;font-weight:600;">requested access to</span> ${escapeHtml(request.batch)}</strong><p>${escapeHtml(request.email)} · ${request.when}</p></main><span class="badge ${request.status.toLowerCase() === 'pending' ? 'pending' : 'approved'}">${request.status}</span>${request.status === 'Pending' ? `<div class="request-actions"><button class="button green" data-admin-action="approve">${icon('check')} Approve</button><button class="button secondary" data-admin-action="reject">${icon('x')} Reject</button></div>` : ''}</div>`).join('') : `<div class="empty" style="padding:30px 12px 10px;">${icon('inbox')}<h3>No access requests yet</h3><p>Connect your learner directory to review real requests here.</p></div>`}</div></section>`;
 }
 
 function render() {
@@ -357,11 +354,156 @@ document.addEventListener('input', (event) => {
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closePlayer(); });
 window.addEventListener('popstate', () => { state.docSearch = ''; render(); });
 
+const TOPIC_OUTLINES = {
+  "intro-devops": [
+    "Principles and culture of DevOps",
+    "DevOps Engineer skills and career scope",
+    "DevOps lifecycle and delivery pipeline",
+    "DevOps market trends: cloud-native, GitOps, AIOps, DevSecOps",
+    "Challenges and solutions in adopting DevOps"
+  ],
+  "cloud-virtualization": [
+    "Cloud computing essentials: IaaS, PaaS, SaaS",
+    "AWS, Azure, and Google Cloud overview and comparison",
+    "Virtualization vs containers vs serverless",
+    "Cloud deployment models",
+    "Hands-on: setting up cloud resources (AWS focus, Azure/GCP introduction)"
+  ],
+  "linux": [
+    "Introduction to Linux and distributions",
+    "Linux file system structure",
+    "Basic Linux commands",
+    "File and directory management",
+    "User and group management",
+    "File permissions and ownership",
+    "Package management: APT and YUM/DNF",
+    "Process management",
+    "System monitoring commands",
+    "Networking commands",
+    "Shell scripting basics",
+    "Cron jobs and task scheduling",
+    "SSH and remote access",
+    "Log management and troubleshooting"
+  ],
+  "git": [
+    "Git fundamentals: init, clone, add, commit, push, pull",
+    "Branching, merging, rebasing, and workflows",
+    "Remote repositories and collaboration",
+    "GitFlow and trunk-based development",
+    "Introduction to GitHub Actions and GitLab CI"
+  ],
+  "ci": [
+    "CI concepts and benefits",
+    "Jenkins: setup, pipelines, plugins, distributed builds",
+    "GitHub Actions and GitLab CI/CD pipelines",
+    "Maven and Gradle build automation",
+    "Automated testing integration"
+  ],
+  "containers": [
+    "Docker fundamentals: images, containers, Dockerfile",
+    "Container lifecycle and best practices",
+    "Docker networking and storage",
+    "Docker Compose for multi-container applications",
+    "Optional: Podman and Buildah"
+  ],
+  "kubernetes": [
+    "Kubernetes fundamentals",
+    "Cluster architecture: control plane, worker nodes, API server, etcd",
+    "Pods and ReplicaSets",
+    "Deployments and StatefulSets",
+    "Services and networking: ClusterIP, NodePort, Ingress",
+    "ConfigMaps and Secrets",
+    "Persistent Volumes and Persistent Volume Claims",
+    "Helm and Kustomize",
+    "Service mesh: Istio and Linkerd"
+  ],
+  "terraform": [
+    "Infrastructure automation concepts",
+    "Terraform fundamentals: providers, resources, state, modules",
+    "Writing and applying Terraform configurations",
+    "Pulumi overview",
+    "Integrating IaC into CI/CD"
+  ],
+  "config-management": [
+    "Ansible basics: inventory, playbooks, roles",
+    "YAML syntax and structure",
+    "Ansible Galaxy, handlers, and variables",
+    "Automating infrastructure with Ansible",
+    "Puppet and Chef comparison"
+  ],
+  "delivery": [
+    "Continuous Delivery vs Continuous Deployment",
+    "Blue/Green, Canary, and Rolling deployments",
+    "GitOps with Argo CD and Flux CD",
+    "Integrating deployments with Kubernetes"
+  ],
+  "observability": [
+    "Importance of monitoring in DevOps",
+    "Prometheus and Grafana",
+    "ELK/EFK stack",
+    "Tracing with Jaeger and OpenTelemetry",
+    "Alerting and incident management"
+  ],
+  "devsecops": [
+    "Security fundamentals in CI/CD",
+    "Vulnerability scanning: Aqua, Trivy, Clair",
+    "Secrets management: Vault, AWS Secrets Manager, SOPS",
+    "SAST, DAST, and dependency scanning",
+    "Compliance and policy as code: OPA and Kyverno"
+  ],
+  "collaboration": [
+    "Agile and Scrum overview",
+    "Jira, Azure Boards, and Trello",
+    "Slack, Microsoft Teams, and ChatOps",
+    "Documentation and knowledge sharing: Confluence, Notion, MkDocs"
+  ],
+  "ai-mlops": [
+    "Introduction to AIOps and MLOps",
+    "AI in DevOps",
+    "Machine-learning lifecycle",
+    "ML pipelines overview",
+    "Model deployment concepts",
+    "CI/CD for machine learning",
+    "MLflow introduction",
+    "Kubeflow overview",
+    "AI-powered monitoring",
+    "Predictive incident management",
+    "Generative AI for DevOps engineers"
+  ],
+  "capstone": [
+    "Project overview",
+    "Code in GitHub",
+    "CI with GitHub Actions or Jenkins",
+    "Build and containerize with Docker",
+    "Deploy on Kubernetes with Helm and/or Argo CD",
+    "Monitor with Prometheus and Grafana",
+    "Implement DevSecOps with Trivy and Vault",
+    "Required deliverables and assessment"
+  ]
+};
+function completeCurriculum(modules) {
+  return modules.map((module) => {
+    const existing = new Map((module.topics || []).map((topic) => [topic.title, topic]));
+    const titles = TOPIC_OUTLINES[module.id] || module.topics.map((topic) => topic.title);
+    const topics = titles.map((title) => existing.get(title) || {
+      slug: slugify(title),
+      title,
+      definition: `${title} is a practical part of ${module.title}.`,
+      why: `Understanding ${title.toLowerCase()} helps you make safer, more repeatable delivery decisions.`,
+      how: `Learn the concept, try it in a small lab, then connect it to the rest of the ${module.title.toLowerCase()} workflow.`,
+      example: `Use a small, disposable example to see how ${title.toLowerCase()} changes a real delivery task.`,
+      mistake: 'Skipping the basic checks or applying the idea without confirming the surrounding context.',
+      recap: 'Define the idea, practise it safely, and review the evidence before moving on.'
+    });
+    return { ...module, topics };
+  });
+}
+
 async function bootstrap() {
   renderLoading();
   try {
     const response = await fetch('/api/catalog');
-    state.modules = (await response.json()).sort((a, b) => Number(a.number) - Number(b.number));
+    state.modules = completeCurriculum((await response.json()).sort((a, b) => Number(a.number) - Number(b.number)));
   } catch (error) {
     state.modules = [];
     showToast('Catalog could not be loaded');
