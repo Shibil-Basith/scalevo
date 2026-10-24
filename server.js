@@ -379,6 +379,7 @@ async function start() {
       if (req.method !== "GET" && req.method !== "HEAD") return json(res, 405, { error: "Method not allowed" });
       if (url.pathname === "/manus-routes.json") { res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" }); return res.end(fs.readFileSync(path.join(ROOT, "manus-routes.json"), "utf8")); }
       if (url.pathname === "/scalevo-mark.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-mark.svg"), "utf8")); }
+      if (url.pathname === "/scalevo-favicon.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-favicon.svg"), "utf8")); }
       return html(res, 200, fs.readFileSync(INDEX, "utf8"));
     } catch (error) {
       console.error(error);

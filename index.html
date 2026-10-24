@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f6f8fc" />
     <meta name="description" content="Scalevo is a focused DevOps learning workspace for session recordings and syllabus progress." />
+    <link rel="icon" type="image/svg+xml" href="/scalevo-favicon.svg" />
+    <link rel="apple-touch-icon" href="/scalevo-favicon.svg" />
     <title>Scalevo · DevOps learning workspace</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -39,6 +41,14 @@
       .lesson-row:hover { transform: translateX(3px); border-color: rgba(96, 165, 250, .55); background: #f8fbff; }
       .focus-ring:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid rgba(59, 130, 246, .34); outline-offset: 3px; }
       .progress-bar { transition: width .35s ease; }
+      .empty-doc-illustration { position: relative; width: 8rem; height: 6rem; margin: 0 auto; overflow: hidden; border-radius: 1.5rem; background: linear-gradient(135deg, #eef4ff, #f7f4ff); border: 1px solid rgba(148, 163, 184, .24); }
+      .empty-doc-illustration::before, .empty-doc-illustration::after { content: ""; position: absolute; border-radius: 999px; opacity: .72; animation: doc-float 5s ease-in-out infinite; }
+      .empty-doc-illustration::before { width: 2.7rem; height: 2.7rem; left: 1.1rem; top: 1.55rem; background: rgba(99, 126, 255, .22); box-shadow: 3rem .55rem 0 rgba(157, 126, 255, .18); }
+      .empty-doc-illustration::after { width: .45rem; height: .45rem; left: 5.8rem; top: 1.1rem; background: #7891ff; box-shadow: -4rem 3.25rem 0 #c0a8ff, -1.2rem 3.45rem 0 #9bb0ff; animation-delay: -1.5s; }
+      .empty-doc-sheet { position: absolute; left: 2.65rem; top: 1.1rem; z-index: 1; width: 2.7rem; height: 3.7rem; border: 1px solid rgba(99, 126, 255, .28); border-radius: .75rem; background: rgba(255, 255, 255, .9); box-shadow: 0 1rem 2rem -1.25rem rgba(37, 54, 120, .45); transform: rotate(-5deg); animation: doc-sheet 5s ease-in-out infinite; }
+      .empty-doc-sheet::before { content: ""; position: absolute; left: .6rem; right: .6rem; top: .85rem; height: .25rem; border-radius: 999px; background: #7188ff; box-shadow: 0 .7rem 0 #c4ceff, 0 1.4rem 0 #dce2ff; }
+      @keyframes doc-float { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.04); } }
+      @keyframes doc-sheet { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-4px) rotate(-2deg); } }
       .modal-backdrop { background: rgba(15, 23, 42, .64); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
       .video-frame { aspect-ratio: 16 / 9; background: #0b1220; }
       .brand-wordmark { letter-spacing: -.045em; }
@@ -99,7 +109,7 @@
         },
       ];
 
-      const scalevoMark = (cls = "h-10 w-10") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="${cls}" role="img" aria-label="Scalevo"><defs><linearGradient id="scalevoMonogramInline" x1="12" y1="12" x2="53" y2="54" gradientUnits="userSpaceOnUse"><stop stop-color="#2563eb"/><stop offset=".52" stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M49 14c-5-5-13-6-20-3l-9 4c-6 3-7 10-2 14 3 3 8 4 13 3l5-1c5-1 9 1 9 5 0 3-3 6-7 8l-9 4c-7 3-14 1-18-4" fill="none" stroke="url(#scalevoMonogramInline)" stroke-linecap="round" stroke-linejoin="round" stroke-width="7"/><path d="m34 34 8 16 11-24" fill="none" stroke="#172033" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/></svg>`;
+      const scalevoMark = (cls = "h-10 w-10") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="${cls}" role="img" aria-label="Scalevo"><rect width="64" height="64" rx="18" fill="#172033"/><path d="M45 19c-4-4-10-5-16-3l-7 3c-5 2-6 7-2 10 3 3 7 3 12 2l5-1c5-1 9 1 9 5 0 3-2 5-6 7l-7 3c-6 2-11 1-15-3" fill="none" stroke="#6d8cff" stroke-linecap="round" stroke-linejoin="round" stroke-width="6"/><circle cx="47" cy="43" r="3" fill="#b7c5ff"/></svg>`;
       const sortModules = (items) => [...items].sort((a, b) => {
         const numberA = Number.parseInt(a.number, 10); const numberB = Number.parseInt(b.number, 10);
         return (Number.isNaN(numberA) ? Number.MAX_SAFE_INTEGER : numberA) - (Number.isNaN(numberB) ? Number.MAX_SAFE_INTEGER : numberB) || String(a.title).localeCompare(String(b.title));
@@ -186,7 +196,7 @@
         const progress = moduleProgress(module);
         const ready = module.lessons.filter((lesson) => lesson.ready).length;
         const docs = module.documentation || [];
-        const documentationSection = `<section class="mt-8 glass rounded-[1.25rem] p-6 sm:p-7"><div class="flex items-start justify-between gap-4"><div><p class="text-xs font-extrabold uppercase tracking-[.18em] text-blue-600">Documentation</p><h2 class="display mt-1 text-xl font-extrabold tracking-[-.04em] text-slate-950">Topic notes from your admin</h2></div><span class="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.12em] text-slate-500">${docs.length} published</span></div>${docs.length ? docs.map((doc) => `<article class="mt-5 rounded-xl border border-slate-100 bg-white/70 p-4"><h3 class="font-extrabold text-slate-900">${escapeHtml(doc.topicTitle)}</h3>${markdownHtml(doc.markdown)}</article>`).join("") : `<div class="mt-5 rounded-xl border border-dashed border-slate-200 px-4 py-7 text-center"><p class="text-sm font-bold text-slate-700">Documentation has not been published yet.</p><p class="mt-2 text-xs leading-6 text-slate-400">Your administrator can add a markdown note for each topic from the admin dashboard.</p></div>`}</section>`;
+        const documentationSection = `<section class="mt-8 glass rounded-[1.25rem] p-6 sm:p-7"><div class="flex items-start justify-between gap-4"><div><p class="text-xs font-extrabold uppercase tracking-[.18em] text-blue-600">Documentation</p><h2 class="display mt-1 text-xl font-extrabold tracking-[-.04em] text-slate-950">Topic notes</h2></div><span class="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[.12em] text-slate-500">${docs.length} published</span></div>${docs.length ? docs.map((doc) => `<article class="mt-5 rounded-xl border border-slate-100 bg-white/70 p-4"><h3 class="font-extrabold text-slate-900">${escapeHtml(doc.topicTitle)}</h3>${markdownHtml(doc.markdown)}</article>`).join("") : `<div class="mt-5 rounded-xl border border-dashed border-slate-200 bg-white/45 px-4 py-7 text-center"><div class="empty-doc-illustration" aria-hidden="true"><div class="empty-doc-sheet"></div></div><p class="mt-5 text-sm font-bold text-slate-700">Your study notes are taking shape.</p><p class="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-400">Topic notes will appear here as this module grows.</p></div>`}</section>`;
         const accessStatus = module.accessStatus || "locked";
         const unlocked = module.unlocked || accessStatus === "approved";
         const accessCopy = accessStatus === "pending" ? "Your request is waiting for administrator approval." : accessStatus === "denied" ? "The administrator denied this request. You can request access again." : "Request administrator approval to unlock the recordings in this module.";
