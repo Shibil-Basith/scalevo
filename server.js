@@ -152,6 +152,12 @@ async function ensureSchema() {
       UNIQUE KEY user_batch_request (batch_id, user_id),
       INDEX (batch_id), INDEX (user_id), INDEX (status)
     )`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS batch_modules (
+      batch_id BIGINT UNSIGNED NOT NULL,
+      module_id VARCHAR(100) NOT NULL,
+      PRIMARY KEY (batch_id, module_id),
+      INDEX (module_id)
+    )`);
     const [[count]] = await connection.query("SELECT COUNT(*) AS count FROM content_modules");
     if (Number(count.count) === 0) {
       for (let index = 0; index < seed.length; index += 1) {
@@ -196,9 +202,11 @@ async function getContent(accessUserId = null) {
   const [lessons] = await database.query("SELECT id AS lessonId, module_id AS moduleId, title, drive_id AS driveId, sort_order AS sortOrder FROM content_lessons ORDER BY module_id, sort_order");
   const [documentation] = await database.query("SELECT module_id AS moduleId, topic_slug AS topicSlug, topic_title AS topicTitle, markdown, sort_order AS sortOrder, updated_at AS updatedAt FROM content_documentation ORDER BY module_id, sort_order, topic_title");
   const accessRows = accessUserId ? (await database.query("SELECT module_id AS moduleId, status FROM module_access_requests WHERE user_id=?", [accessUserId]))[0] : [];
+  const batchModuleRows = accessUserId ? (await database.query("SELECT DISTINCT bm.module_id AS moduleId FROM batch_modules bm JOIN batch_requests br ON br.batch_id=bm.batch_id WHERE br.user_id=? AND br.status='approved'", [accessUserId]))[0] : [];
   const accessByModule = Object.fromEntries(accessRows.map((row) => [row.moduleId, row.status]));
+  const batchModuleIds = new Set(batchModuleRows.map((row) => row.moduleId));
   const docsByModule = documentation.reduce((result, doc) => { (result[doc.moduleId] ||= []).push(doc); return result; }, {});
-  return modules.map((module) => { const unlocked = !accessUserId || accessByModule[module.id] === "approved"; const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id).map((lesson) => ({ id: lesson.driveId, title: lesson.title, ready: Boolean(lesson.driveId), lessonId: lesson.lessonId })); return { ...module, accessStatus: accessUserId ? (accessByModule[module.id] || "locked") : "admin", unlocked, lessonCount: moduleLessons.length, lessons: unlocked ? moduleLessons : [], documentation: unlocked || !accessUserId ? (docsByModule[module.id] || []) : [] }; });
+  return modules.map((module) => { const batchUnlocked = batchModuleIds.has(module.id); const unlocked = !accessUserId || accessByModule[module.id] === "approved" || batchUnlocked; const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id).map((lesson) => ({ id: lesson.driveId, title: lesson.title, ready: Boolean(lesson.driveId), lessonId: lesson.lessonId })); return { ...module, accessStatus: accessUserId ? (accessByModule[module.id] === "approved" || batchUnlocked ? "approved" : (accessByModule[module.id] || "locked")) : "admin", unlocked, lessonCount: moduleLessons.length, lessons: unlocked ? moduleLessons : [], documentation: unlocked || !accessUserId ? (docsByModule[module.id] || []) : [] }; });
 }
 
 async function verifyGoogleCredential(credential) {
@@ -301,12 +309,17 @@ async function api(req, res, pathname) {
   if (req.method === "GET" && pathname === "/api/admin/batches") {
     const database = await db();
     const [batches] = await database.query(`SELECT b.id, b.name, b.description, b.schedule, b.start_date AS startDate, b.end_date AS endDate, b.status, b.created_at AS createdAt, COUNT(CASE WHEN r.status='approved' THEN 1 END) AS memberCount, COUNT(CASE WHEN r.status='pending' THEN 1 END) AS pendingCount FROM batches b LEFT JOIN batch_requests r ON r.batch_id=b.id GROUP BY b.id ORDER BY COALESCE(b.start_date, '9999-12-31'), b.name`);
+    const [batchModules] = await database.query("SELECT bm.batch_id AS batchId, bm.module_id AS moduleId, m.title FROM batch_modules bm JOIN content_modules m ON m.id=bm.module_id ORDER BY m.sort_order, m.title");
+    const modulesByBatch = batchModules.reduce((result, item) => { (result[item.batchId] ||= []).push({ id: item.moduleId, title: item.title }); return result; }, {});
+    batches.forEach((batch) => { batch.modules = modulesByBatch[batch.id] || []; });
     const [requests] = await database.query(`SELECT r.id, r.batch_id AS batchId, b.name AS batchName, r.status, r.requested_at AS requestedAt, u.id AS userId, u.full_name AS name, u.email, u.phone FROM batch_requests r JOIN batches b ON b.id=r.batch_id JOIN users u ON u.id=r.user_id ORDER BY CASE WHEN r.status='pending' THEN 0 ELSE 1 END, r.requested_at DESC`);
     return json(res, 200, { batches, requests });
   }
   if (req.method === "POST" && pathname === "/api/admin/batches") {
     const input = await body(req); const name = safe(input.name); if (!name) return json(res, 400, { error: "Batch name is required" });
     const result = await (await db()).query("INSERT INTO batches (name, description, schedule, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?)", [name, safe(input.description), safe(input.schedule), input.startDate || null, input.endDate || null, ["open", "upcoming", "closed", "archived"].includes(input.status) ? input.status : "open"]);
+    const moduleIds = Array.isArray(input.moduleIds) ? [...new Set(input.moduleIds.map((id) => safe(id)).filter(Boolean))] : [];
+    if (moduleIds.length) await (await db()).query("INSERT IGNORE INTO batch_modules (batch_id, module_id) SELECT ?, id FROM content_modules WHERE id IN (?)", [result[0].insertId, moduleIds]);
     return json(res, 201, { id: result[0].insertId });
   }
   const adminBatchMatch = pathname.match(/^\/api\/admin\/batches\/([0-9]+)$/);
@@ -314,10 +327,13 @@ async function api(req, res, pathname) {
     const input = await body(req); const status = ["open", "upcoming", "closed", "archived"].includes(input.status) ? input.status : "open";
     const result = await (await db()).query("UPDATE batches SET name=?, description=?, schedule=?, start_date=?, end_date=?, status=? WHERE id=?", [safe(input.name), safe(input.description), safe(input.schedule), input.startDate || null, input.endDate || null, status, adminBatchMatch[1]]);
     if (!result[0].affectedRows) return json(res, 404, { error: "Batch not found" });
+    await (await db()).query("DELETE FROM batch_modules WHERE batch_id=?", [adminBatchMatch[1]]);
+    const moduleIds = Array.isArray(input.moduleIds) ? [...new Set(input.moduleIds.map((id) => safe(id)).filter(Boolean))] : [];
+    if (moduleIds.length) await (await db()).query("INSERT IGNORE INTO batch_modules (batch_id, module_id) SELECT ?, id FROM content_modules WHERE id IN (?)", [adminBatchMatch[1], moduleIds]);
     return json(res, 200, { ok: true });
   }
   if (adminBatchMatch && req.method === "DELETE") {
-    await (await db()).query("DELETE FROM batch_requests WHERE batch_id=?", [adminBatchMatch[1]]); await (await db()).query("DELETE FROM batches WHERE id=?", [adminBatchMatch[1]]); return json(res, 200, { ok: true });
+    await (await db()).query("DELETE FROM batch_requests WHERE batch_id=?", [adminBatchMatch[1]]); await (await db()).query("DELETE FROM batch_modules WHERE batch_id=?", [adminBatchMatch[1]]); await (await db()).query("DELETE FROM batches WHERE id=?", [adminBatchMatch[1]]); return json(res, 200, { ok: true });
   }
   const batchDecisionMatch = pathname.match(/^\/api\/admin\/batch-requests\/([0-9]+)$/);
   if (batchDecisionMatch && req.method === "PATCH") {
