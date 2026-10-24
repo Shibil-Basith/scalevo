@@ -22,54 +22,143 @@ function html(res, status, body) {
   res.end(body);
 }
 
-async function streamGoogleDriveVideo(req, res, driveId) {
-  const upstreamHeaders = {};
+async function streamGoogleDriveVideo(req, res, driveId, lessonId) {
+  const upstreamHeaders = {
+    Accept: "video/*, application/octet-stream;q=0.9, */*;q=0.8",
+    "Accept-Encoding": "identity",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/129.0.0.0 Safari/537.36",
+  };
   if (req.headers.range) upstreamHeaders.Range = req.headers.range;
   if (req.headers["if-range"]) upstreamHeaders["If-Range"] = req.headers["if-range"];
 
-  const controller = new AbortController();
-  const upstream = await fetch(`https://drive.google.com/uc?export=download&id=${encodeURIComponent(driveId)}`, {
-    method: req.method,
-    headers: upstreamHeaders,
-    redirect: "follow",
-    signal: controller.signal,
-  });
-  const upstreamType = upstream.headers.get("content-type") || "";
-  const contentType = /^video\//i.test(upstreamType)
-    ? upstreamType
-    : /^application\/(?:octet-stream|binary)/i.test(upstreamType) ? "video/mp4" : "";
+  const encodedId = encodeURIComponent(driveId);
+  const targets = [
+    `https://drive.google.com/uc?export=download&id=${encodedId}`,
+    `https://drive.usercontent.google.com/download?id=${encodedId}&export=download&confirm=t`,
+  ];
+  const retryableStatuses = new Set([429, 500, 502, 503, 504]);
+  let finalResponse = null;
+  let finalController = null;
+  let contentType = "";
+  let lastNetworkError = null;
+
+  for (const target of targets) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const controller = new AbortController();
+      const connectTimeout = setTimeout(() => controller.abort(), 15000);
+      connectTimeout.unref?.();
+      let upstream;
+      try {
+        upstream = await fetch(target, {
+          method: req.method,
+          headers: upstreamHeaders,
+          redirect: "follow",
+          signal: controller.signal,
+        });
+        clearTimeout(connectTimeout);
+      } catch (error) {
+        clearTimeout(connectTimeout);
+        lastNetworkError = error;
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          continue;
+        }
+        finalResponse = null;
+        finalController = null;
+        break;
+      }
+
+      const rawType = upstream.headers.get("content-type") || "";
+      const isHtmlOrJson = /^(?:text\/|application\/(?:json|xml|xhtml))/i.test(rawType);
+      const mediaType = /^video\//i.test(rawType)
+        ? rawType
+        : /^application\/(?:octet-stream|binary|x-download|download)/i.test(rawType)
+          ? "video/mp4"
+          : [200, 206].includes(upstream.status) && upstream.headers.has("content-range") && !isHtmlOrJson
+            ? "video/mp4"
+            : "";
+
+      finalResponse = upstream;
+      finalController = null;
+      contentType = mediaType;
+      lastNetworkError = null;
+
+      if (upstream.status === 416 || (upstream.ok && mediaType)) {
+        finalController = controller;
+        break;
+      }
+
+      const shouldRetry = retryableStatuses.has(upstream.status) && attempt === 0;
+      await upstream.body?.cancel().catch(() => {});
+      if (shouldRetry) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        continue;
+      }
+      break;
+    }
+    if (finalController) break;
+    if (finalResponse && (finalResponse.status === 416 || (finalResponse.ok && contentType))) break;
+  }
+
+  if (!finalResponse || lastNetworkError) {
+    const errorCode = lastNetworkError?.name === "AbortError" ? "DRIVE_UPSTREAM_TIMEOUT" : "DRIVE_NETWORK_ERROR";
+    console.error(`[scalevo:video] lesson=${lessonId} upstreamStatus=network error=${errorCode}`);
+    return json(res, 502, { error: "Google Drive did not respond while preparing this video. Please retry in a moment.", code: errorCode });
+  }
+
+  const upstreamType = finalResponse.headers.get("content-type") || "";
   const headers = {
     "Content-Type": contentType || "application/json; charset=utf-8",
-    "Accept-Ranges": upstream.headers.get("accept-ranges") || "bytes",
+    "Accept-Ranges": finalResponse.headers.get("accept-ranges") || "bytes",
     "Cache-Control": "private, no-store",
     "Content-Disposition": "inline",
     "X-Content-Type-Options": "nosniff",
   };
-  const length = upstream.headers.get("content-length");
-  const range = upstream.headers.get("content-range");
+  const length = finalResponse.headers.get("content-length");
+  const range = finalResponse.headers.get("content-range");
   if (length) headers["Content-Length"] = length;
   if (range) headers["Content-Range"] = range;
 
-  if (upstream.status === 416) {
+  if (finalResponse.status === 416) {
     res.writeHead(416, headers);
     res.end();
-    await upstream.body?.cancel().catch(() => {});
+    await finalResponse.body?.cancel().catch(() => {});
     return;
   }
-  if (!upstream.ok || !contentType) {
-    await upstream.body?.cancel().catch(() => {});
-    return json(res, 502, { error: "This video is unavailable. Check that the Google Drive file is shared with the intended viewer." });
+  if (!finalResponse.ok || !contentType || !finalController) {
+    const status = finalResponse.status;
+    const sanitizedType = upstreamType.split(";")[0].slice(0, 80) || "unknown";
+    const errorCode = status === 403 ? "DRIVE_PERMISSION_DENIED" : status === 404 ? "DRIVE_FILE_NOT_FOUND" : status === 429 ? "DRIVE_RATE_LIMITED" : contentType ? `DRIVE_HTTP_${status}` : "DRIVE_NON_VIDEO_RESPONSE";
+    const message = status === 403
+      ? "Google Drive denied access to this video. Set the file's General access to Anyone with the link (Viewer), then retry."
+      : status === 404
+        ? "Google Drive could not find this video. Ask the administrator to verify the stored Drive file."
+        : status === 429
+          ? "Google Drive is rate-limiting this video. Please retry shortly."
+          : contentType
+            ? "Google Drive is temporarily unable to deliver this video. Please retry shortly."
+            : "Google Drive returned a non-video response. Check the file's sharing and download settings.";
+    console.error(`[scalevo:video] lesson=${lessonId} upstreamStatus=${status} contentType=${sanitizedType}`);
+    res.writeHead(502, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Scalevo-Drive-Status": String(status),
+      "X-Scalevo-Drive-Type": sanitizedType,
+    });
+    res.end(JSON.stringify({ error: message, code: errorCode, upstreamStatus: status, upstreamContentType: sanitizedType }));
+    await finalResponse.body?.cancel().catch(() => {});
+    return;
   }
 
-  res.writeHead(upstream.status, headers);
-  if (req.method === "HEAD" || !upstream.body) {
-    await upstream.body?.cancel().catch(() => {});
+  res.writeHead(finalResponse.status, headers);
+  if (req.method === "HEAD" || !finalResponse.body) {
+    await finalResponse.body?.cancel().catch(() => {});
     res.end();
     return;
   }
 
-  res.on("close", () => { if (!res.writableEnded) controller.abort(); });
-  const stream = Readable.fromWeb(upstream.body);
+  res.on("close", () => { if (!res.writableEnded) finalController.abort(); });
+  const stream = Readable.fromWeb(finalResponse.body);
   stream.on("error", () => { if (!res.destroyed) res.destroy(); });
   stream.pipe(res);
 }
@@ -388,7 +477,7 @@ async function api(req, res, pathname) {
     if (!(await hasLessonAccess(database, grant.role, grant.userId, lesson.module_id))) {
       return json(res, 403, { error: "Approved module access is required" });
     }
-    return streamGoogleDriveVideo(req, res, lesson.drive_id);
+    return streamGoogleDriveVideo(req, res, lesson.drive_id, lesson.id);
   }
   const accessRequestMatch = pathname.match(/^\/api\/modules\/([^/]+)\/access-request$/);
   if (req.method === "POST" && accessRequestMatch) {
