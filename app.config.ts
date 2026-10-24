@@ -1,3 +1,3 @@
 export default {
-  logoUrl: "https://scalevo.space/scalevo-mark.svg",
+  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519664041729890/bRVfiagmVfwmAXTy.svg",
 };
