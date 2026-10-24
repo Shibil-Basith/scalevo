@@ -381,6 +381,7 @@ async function start() {
       if (url.pathname === "/scalevo-mark.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-mark.svg"), "utf8")); }
       if (url.pathname === "/scalevo-favicon.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-favicon.svg"), "utf8")); }
       if (url.pathname === "/scalevo-logo-dark-bg.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-logo-dark-bg.svg"), "utf8")); }
+      if (url.pathname === "/scalevo-logo-login.svg") { res.writeHead(200, { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=86400" }); return res.end(fs.readFileSync(path.join(ROOT, "scalevo-logo-login.svg"), "utf8")); }
       return html(res, 200, fs.readFileSync(INDEX, "utf8"));
     } catch (error) {
       console.error(error);
