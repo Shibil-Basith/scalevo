@@ -4,9 +4,11 @@
 - [x] Preserve the supplied Scalevo light glass visual language, monogram, typography, module accents, and readable responsive cards.
 - [x] Provide a mobile navigation drawer with learner/admin actions at narrow widths; keep the workspace usable on phones, tablets, laptops, and desktop screens.
 - [x] Update the existing Scalevo UI to a premium, clean learning-platform presentation inspired by the Softr online-classes template at https://www.softr.io/templates/online-classes; do not clone its UI. Keep the current Scalevo branding and the site's existing learner, access, course, batch, documentation, progress, and admin features.
+- [x] Align the initial learner entry screen on mobile phones and small devices; keep its controls legible and properly aligned without clipping or horizontal overflow, let the content scroll naturally, and preserve the established desktop layout.
 
 ## Authentication and role separation
 - [x] Keep learner sign-in on Google Identity Services with verified Gmail, full name, and phone number capture.
+- [x] On the learner start page, show both `Log in` and `Sign up`. In `Sign up`, ask for the user's full name and phone number and use Continue with Google to verify Gmail before creating a learner account. In `Log in`, show only Continue with Google and do not require a name or phone. For a returning verified Google account, create a session while preserving the stored name and phone. If a Google account has no learner record and chooses `Log in`, do not create an account; direct the user to `Sign up`.
 - [x] Keep administrator sign-in separate from Google authentication with the development credentials `admin` / `admin123`, overridable through environment variables.
 - [x] Render the learner course workspace only for user sessions and the module/access/user-management workspace only for admin sessions.
 - [x] Persist sessions with cross-site Preview-safe cookies and protect admin endpoints server-side.

@@ -1,18 +1,19 @@
 # Scalevo Learning Workspace — implementation plan
 
 ## Scope and source of truth
-Update the existing Scalevo DevOps learning platform from the user-provided repository without cloning the Softr template or removing existing features. The production server serves the root `index.html` and `server.js`; the `public/` directory is a legacy prototype and is not the production client. Preserve the current Google-verified learner login, separate administrator authentication, 15-module learning catalog, approval-gated module and batch access, recordings, documentation, progress, and admin management workflows.
+Update the existing Scalevo DevOps learning platform without cloning the Softr template or removing existing features. The production server serves the root `index.html` and `server.js`; `public/` is a legacy prototype and is not the production client. Preserve the existing verified-Google learner authentication, separate administrator authentication, 15-module learning catalog, approval-gated module and batch access, recordings, documentation, progress, and admin management workflows.
 
 ## Implementation approach
-- Refine the root app into a premium, polished learning portal inspired by the reference's clear course discovery and structured lesson organization, while keeping Scalevo branding and the existing information architecture.
-- Make `/` learner-only sign-in. Use `/admin` as the administrator sign-in entry and protected admin workspace; do not expose an admin-login mode or tab on the home page. Preserve deep admin routes and server-side API authorization.
-- Add an administrator-only `DELETE /api/admin/users/:id` endpoint. In one database transaction, remove the learner's sessions, progress, module access requests, batch requests, and user record. Add an explicit confirmation before the admin UI sends the deletion request.
-- Use Plyr around an HTML5 video element backed by a same-origin `/api/lessons/:lessonId/video` stream. First mint a short-lived, lesson-scoped media token through the authenticated API, so the browser's media request does not rely on Preview iframe cookies. Bind and revoke grants with the application session; recheck current admin or approved-learner/batch access on the stream, forward HTTP Range requests to Google Drive, and stream inline without a Drive redirect. Keep only in-player controls and show a clear preparation or playback error.
-- Keep all changes in the root production client/server, deployment files, route manifest and these project notes. Do not migrate the legacy `public/` prototype into the production path.
+- Keep `/` learner-only and make `/admin` the administrator sign-in entry and protected admin workspace. Do not expose admin login on the learner home page.
+- Present two learner options: `Log in` and `Sign up`. Sign-up asks for full name and phone number, then uses Continue with Google to verify Gmail before creating an account. Returning login presents only Continue with Google and sends no profile fields. The server identifies an existing user by verified Google subject, preserves their stored name and phone, and creates a session. Login from a Google identity with no account does not create an incomplete record; show a sign-up prompt instead.
+- Make the initial learner page compact and properly aligned on phones and small screens: keep the mode selector, required fields (when signing up), and Google action legible and unclipped, with natural vertical scrolling and no horizontal overflow. Preserve the established desktop two-column treatment.
+- Add an administrator-only `DELETE /api/admin/users/:id` endpoint. In one database transaction, remove the learner's sessions, progress, module access requests, batch requests, media grants, and user record. Require explicit confirmation before the admin UI sends the deletion request.
+- Use Plyr around an HTML5 video element backed by a same-origin `/api/lessons/:lessonId/video` stream. Mint a short-lived, lesson-scoped media token through the authenticated API so the browser's media request does not rely on Preview iframe cookies. Bind and revoke grants with the application session; recheck current admin or approved-learner/batch access on the stream, forward HTTP Range requests to Google Drive, and stream inline without a Drive redirect.
+- Keep all production changes in the root client/server, deployment files, route manifest, and project notes. Do not migrate the legacy `public/` prototype into the production path.
 
 ## Project structure
-- `server.js`: Node HTTP API, MySQL schema/bootstrap, authentication and sessions, role-protected learner/admin APIs, and root static serving.
-- `index.html`: production Scalevo UI, responsive course catalog, learner workspace, dedicated `/admin` sign-in, admin pages, route handling, and Plyr lesson playback.
+- `server.js`: Node HTTP API, MySQL schema/bootstrap, Google authentication and sessions, role-protected learner/admin APIs, media grants/streaming, and root static serving.
+- `index.html`: production Scalevo UI, compact responsive sign-in/signup, learner workspace, dedicated `/admin` sign-in, route handling, and Plyr lesson playback.
 - `content-seed.json`: initial DevOps course and lesson catalog.
 - `manus-routes.json`: route manifest for the served website, including learner and administrator paths.
 - `scalevo-*.svg` / `scalevo-mark.svg`: existing Scalevo wordmarks and marks used by the UI.
@@ -23,15 +24,15 @@ Update the existing Scalevo DevOps learning platform from the user-provided repo
 ## Design direction
 **Design Movement:** Premium editorial learning portal, using the supplied online-classes template as broad inspiration rather than a visual clone.
 
-**Core Principles:** Make the course library feel curated; keep progress and access states legible; give high-value actions clear hierarchy; preserve a calm, responsive learner workspace.
+**Core Principles:** Make the course library feel curated; keep progress and access states legible; give high-value actions clear hierarchy; provide a focused, mobile-first entry point.
 
 **Color Philosophy:** A warm, pale neutral canvas and deep ink surfaces make the portal feel considered and focused. Scalevo blue remains the signature accent for learning actions, with restrained emerald and amber states for completion and review.
 
-**Layout Paradigm:** Spacious course discovery and focused course details, with the authenticated content area and admin workflows organized into distinct, easy-to-scan sections.
+**Layout Paradigm:** Spacious course discovery and focused course details, with authenticated content and admin workflows organized into distinct, easy-to-scan sections. On narrow screens, prioritize the learner mode selector and primary action above a compact brand panel.
 
 **Signature Elements:** Scalevo's existing monogram and wordmark; refined course cards with clear module identity and progress; a dark, focused in-app video stage.
 
-**Interaction Philosophy:** Preserve existing learner and admin behavior. Make access state, route destination, deletion confirmation, and video playback status explicit.
+**Interaction Philosophy:** Preserve existing learner and admin behavior. Make access state, route destination, deletion confirmation, account mode, required sign-up details, and video playback status explicit.
 
 **Animation:** Use short, restrained transitions on cards and controls; honor reduced-motion preferences.
 
@@ -46,9 +47,9 @@ Update the existing Scalevo DevOps learning platform from the user-provided repo
 **Signature Brand Color:** Scalevo blue `#3568f5`, paired with deep ink and restrained violet accents.
 
 ## Manus preview scope and data boundary
-The user approved an isolated Manus preview of the updated production app. Copy the existing root `index.html`, `server.js`, content seed, route manifest, deployment files, and Scalevo brand assets into the new Manus Webdev project `scalevo-ui`; do not connect or push to the supplied GitHub repository. Run the existing Node server on the configured Preview port (`PORT`, default `3000`) and serve the `/` learner sign-in and `/admin` administrator sign-in routes through the existing SPA fallback.
+The user approved an isolated Manus preview of the updated production app. It uses its own project-scoped managed MySQL database; production learner records, sessions, secrets, and application data are not copied. The public Google OAuth client ID supplied by the user is passed only into the preview server process, not source or project configuration. Do not publish the Manus preview or change the live `scalevo.space` site as part of this task.
 
-The preview uses its own newly provisioned project-scoped managed MySQL database. Existing production learner records, batches, progress, sessions, secrets, and application data are not copied. The public Google OAuth client ID supplied by the user for this preview is passed only into the preview server process; it is not saved to source or project configuration. The server may initialize the app schema and curriculum within the empty preview project's database. Do not publish the preview project or change the live `scalevo.space` site. Preserve normal sign-in behavior and do not invent an authenticated learner session.
+The user subsequently authorized GitHub integration and pushes to `Shibil-Basith/scalevo` on `main`. For follow-up code changes, fetch and reconcile `origin/main`, commit the reviewed changes, and push without force. A GitHub push is the requested repository update; do not run a separate production publish unless the user asks for it.
 
 ## Delivery workflow
-Implement against the actual production root client/server; validate syntax and static route declarations; avoid production database writes or deletions during validation. The repository is public, but no authenticated GitHub write access is configured in this session, so remote pushes or production publication require a separately authorized path. Keep code changes local until a permitted repository handoff is available.
+Implement against the actual production root client/server; preserve concurrent repository changes, validate client and server syntax and route declarations, and verify the responsive auth and first-time/returning-user flows. Keep production database records untouched during validation. Ensure the Manus Preview stays available at the project's configured runtime port.

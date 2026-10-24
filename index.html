@@ -93,7 +93,35 @@
       @media (max-width: 640px) { button[data-open-module] { min-height: 320px; } .login-visual { min-height: 330px; } .login-panel { padding: 1.75rem 1.35rem; } }
       @media (prefers-reduced-motion: reduce) { .card, button[data-open-module]::after, .admin-nav-button { transition: none !important; } }
     </style>
-  </head>
+
+<style id="scalevo-mobile-auth-fix">
+@media (max-width: 1023px) {
+  .login-shell { min-height: 100svh; align-items: flex-start; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .login-card { width: min(100%, 34rem); grid-template-columns: minmax(0, 1fr); margin-inline: auto; }
+  .login-panel { order: -1; width: 100%; padding: 1.55rem 1.5rem 1.7rem; }
+  .login-visual { min-height: 0; padding: 1.15rem 1.5rem; }
+  .login-visual .premium-course-badge { display: none; }
+  .login-visual > div:first-child > p:first-of-type { margin-top: .8rem !important; }
+  .login-visual h1 { margin-top: .5rem !important; font-size: clamp(1.45rem, 4.6vw, 1.85rem) !important; line-height: 1.12 !important; }
+  .login-visual h1 + p { margin-top: .5rem !important; font-size: .8rem; line-height: 1.5; }
+  .login-visual img { height: 2rem; }
+  .login-panel h2 { font-size: clamp(1.6rem, 5vw, 1.9rem) !important; line-height: 1.12; }
+  .auth-mode-button { min-height: 44px; }
+  .google-login-button { width: 100%; max-width: 100%; overflow: hidden; }
+}
+@media (max-width: 420px) {
+  .login-shell { padding-right: 12px; padding-left: 12px; }
+  .login-card { border-radius: 1.35rem; }
+  .login-panel { padding: 1.35rem 1.15rem 1.45rem; }
+  .login-visual { padding: 1rem 1.15rem; }
+}
+@media (max-height: 700px) and (max-width: 767px) {
+  .login-shell { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 10px; }
+  .login-panel { padding-top: 1rem; padding-bottom: 1rem; }
+  .login-visual { padding-top: .85rem; padding-bottom: .85rem; }
+}
+</style>
+</head>
   <body>
     <div id="app" class="min-h-screen shell-bg"></div>
     <div id="toast" class="pointer-events-none fixed bottom-5 left-1/2 z-50 hidden -translate-x-1/2 rounded-full bg-slate-950 px-4 py-2.5 text-xs font-semibold text-white shadow-xl"></div>
@@ -151,7 +179,7 @@
       modules = sortModules(modules);
       const app = document.querySelector("#app");
       const toast = document.querySelector("#toast");
-      const state = { view: "home", moduleId: null, adminModuleId: modules[0]?.id || "", adminDocTopic: "", adminPage: "overview", adminBatchId: null, query: "", player: null, authReady: false, authUser: null, googleClientId: "", adminUsers: [], adminAccessRequests: [], adminBatches: [], batchRequests: [], userBatches: [], totalLessons: 0 };
+      const state = { view: "home", authMode: "login", moduleId: null, adminModuleId: modules[0]?.id || "", adminDocTopic: "", adminPage: "overview", adminBatchId: null, query: "", player: null, authReady: false, authUser: null, googleClientId: "", adminUsers: [], adminAccessRequests: [], adminBatches: [], batchRequests: [], userBatches: [], totalLessons: 0 };
       let completed = [];
       let dragState = null;
 
@@ -206,12 +234,15 @@
       }
       function loginView() {
         const adminRoute = /^\/admin(?:\/|$)/.test(window.location.pathname);
+        const isSignup = state.authMode === "signup";
+        const authModes = `<div class="auth-mode-switch mb-6 grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" role="tablist" aria-label="Learner account options"><button type="button" role="tab" data-auth-mode="login" aria-selected="${!isSignup}" class="auth-mode-button rounded-lg px-3 py-2.5 text-sm font-extrabold transition ${!isSignup ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}">Log in</button><button type="button" role="tab" data-auth-mode="signup" aria-selected="${isSignup}" class="auth-mode-button rounded-lg px-3 py-2.5 text-sm font-extrabold transition ${isSignup ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"}">Sign up</button></div>`;
+        const signupFields = isSignup ? `<div data-signup-form class="mt-6 space-y-4"><label class="block text-xs font-bold text-slate-600">Full name<input required name="name" autocomplete="name" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Your full name" /></label><label class="block text-xs font-bold text-slate-600">Phone number<input required name="phone" type="tel" inputmode="tel" autocomplete="tel" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Your phone number" /></label></div>` : "";
+        const learnerGoogleHelp = isSignup ? "Google securely verifies the Gmail you will use for Scalevo." : "Continue with the Gmail account you used when you signed up.";
         const authPanel = adminRoute
           ? `<div class="login-panel px-6 py-9 sm:px-10 sm:py-12"><p class="premium-kicker">Administrator access</p><h2 class="display mt-3 text-3xl font-extrabold tracking-[-.05em] text-slate-950">Your workspace, in good hands.</h2><p class="mt-3 text-sm leading-7 text-slate-500">Sign in to manage learners, learning paths, recordings, and access requests.</p><form data-admin-login class="mt-8 space-y-4"><label class="block text-xs font-bold text-slate-600">Username<input required name="username" autocomplete="username" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Admin username" /></label><label class="block text-xs font-bold text-slate-600">Password<input required name="password" type="password" autocomplete="current-password" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Admin password" /></label><button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-3.5 text-sm font-extrabold text-white transition hover:bg-blue-600" type="submit">${icon("lock-keyhole", "h-4 w-4")} Open admin workspace</button></form><a class="mt-6 inline-flex text-xs font-bold text-slate-500 transition hover:text-blue-700" href="/">Return to learner sign in</a></div>`
-          : `<div class="login-panel px-6 py-9 sm:px-10 sm:py-12"><p class="premium-kicker">Learner sign in</p><h2 class="display mt-3 text-3xl font-extrabold tracking-[-.05em] text-slate-950">Continue your learning path.</h2><p class="mt-3 text-sm leading-7 text-slate-500">Use a verified Gmail account to access your approved DevOps recordings and keep your progress together.</p><form data-candidate-form class="mt-7 space-y-4"><label class="block text-xs font-bold text-slate-600">Full name<input required name="name" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Your full name" /></label><label class="block text-xs font-bold text-slate-600">Phone number<input required name="phone" type="tel" class="focus-ring mt-2 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none" placeholder="Your phone number" /></label><div class="border-t border-slate-100 pt-5"><p class="mb-3 text-xs leading-5 text-slate-400">Authentication is handled securely by Google. Only verified Gmail accounts can continue.</p><div id="google-login" class="flex min-h-[48px] items-center justify-center rounded-xl border border-slate-200 bg-white p-2"></div></div></form></div>`;
+          : `<div class="login-panel px-6 py-9 sm:px-10 sm:py-12">${authModes}<p class="premium-kicker">Learner account</p><h2 class="display mt-3 text-3xl font-extrabold tracking-[-.05em] text-slate-950">${isSignup ? "Create your Scalevo account." : "Welcome back."}</h2><p class="auth-intro mt-3 text-sm leading-7 text-slate-500">${isSignup ? "First time here? Add your name and phone, then continue with Google to verify your Gmail." : "Log in securely with the Gmail account linked to your Scalevo learner profile."}</p>${signupFields}<div class="mt-6 border-t border-slate-100 pt-5"><p class="mb-3 text-xs leading-5 text-slate-400">${learnerGoogleHelp}</p><div id="google-login" class="google-login-button flex min-h-[48px] w-full items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-2"></div></div></div>`;
         return `<main class="login-shell flex min-h-screen items-center justify-center px-4 py-7 sm:px-8 sm:py-10"><section class="login-card grid w-full max-w-6xl overflow-hidden rounded-[1.8rem] border bg-white/90 backdrop-blur-xl lg:grid-cols-[.93fr_1.07fr]"><div class="login-visual flex min-h-[390px] flex-col justify-between px-7 py-8 text-white sm:px-11 sm:py-11"><div><img src="/scalevo-logo-login.svg" alt="Scalevo" class="h-10 w-auto max-w-[210px] object-contain sm:h-12" /><p class="mt-12 text-[10px] font-extrabold uppercase tracking-[.22em] text-blue-200">Scalevo learning workspace</p><h1 class="display mt-4 max-w-xl text-4xl font-extrabold leading-[1.08] tracking-[-.055em] sm:text-5xl">Make every learning session count.</h1><p class="mt-5 max-w-md text-sm leading-7 text-slate-300">A considered space for practical DevOps learning—from first principles to confident delivery.</p></div><div class="premium-course-badge mt-10 flex items-center gap-3 rounded-2xl p-4"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-blue-200">${icon("layers-3", "h-5 w-5")}</span><div><strong class="block text-sm font-extrabold">One clear path forward</strong><span class="mt-1 block text-xs text-slate-300">Courses, sessions, and progress in one place</span></div></div></div>${authPanel}</section></main>`;
       }
-
       function homeView() {
         const filtered = modules.filter((module) => `${module.title} ${module.category}`.toLowerCase().includes(state.query.toLowerCase()));
         const indexed = availableLessons().length;
@@ -374,22 +405,30 @@
         }
         if (!window.google?.accounts?.id) { setTimeout(setupGoogleLogin, 300); return; }
         window.__devopsGoogleCallback = async ({ credential }) => {
-          const form = document.querySelector("[data-candidate-form]"); const data = new FormData(form); const name = String(data.get("name") || "").trim(); const phone = String(data.get("phone") || "").trim();
-          if (name.length < 2 || phone.length < 7) { showToast("Enter your full name and phone number first"); return; }
-          try { await request("/api/auth/google", { method: "POST", body: JSON.stringify({ credential, name, phone }) }); await loadWorkspace(); showToast("Signed in successfully"); } catch (error) { showToast(error.message); }
+          const mode = state.authMode === "signup" ? "signup" : "login";
+          const name = mode === "signup" ? String(document.querySelector('[data-signup-form] input[name="name"]')?.value || "").trim() : "";
+          const phone = mode === "signup" ? String(document.querySelector('[data-signup-form] input[name="phone"]')?.value || "").trim() : "";
+          if (mode === "signup" && (name.length < 2 || phone.length < 7)) { showToast("Enter your full name and phone number to sign up"); return; }
+          try { await request("/api/auth/google", { method: "POST", body: JSON.stringify({ credential, mode, name, phone }) }); await loadWorkspace(); showToast("Signed in successfully"); } catch (error) { showToast(error.message); }
         };
         window.google.accounts.id.initialize({ client_id: state.googleClientId, callback: window.__devopsGoogleCallback, auto_select: false, cancel_on_tap_outside: true });
-        if (!target.dataset.ready) { window.google.accounts.id.renderButton(target, { theme: "outline", size: "large", shape: "rectangular", text: "continue_with", width: 320 }); target.dataset.ready = "true"; }
+        if (!target.dataset.ready) {
+          const availableWidth = target.clientWidth ? target.clientWidth - 20 : 320;
+          const buttonWidth = Math.max(200, Math.min(320, availableWidth));
+          window.google.accounts.id.renderButton(target, { theme: "outline", size: "large", shape: "rectangular", text: "continue_with", width: buttonWidth });
+          target.dataset.ready = "true";
+        }
       }
       async function toggleComplete(moduleId, index) { const lesson = modules.find((m) => m.id === moduleId).lessons[index]; const key = `${moduleId}:${lesson.title}`; const at = completed.indexOf(key); const next = at < 0; if (next) completed.push(key); else completed.splice(at, 1); render(); try { await request("/api/progress", { method: "POST", body: JSON.stringify({ moduleId, lessonTitle: lesson.title, completed: next }) }); } catch (error) { showToast(error.message); } }
       async function persistLessonOrder(moduleId, lessonIds) { await request(`/api/admin/modules/${moduleId}/lessons/reorder`, { method: "PATCH", body: JSON.stringify({ lessonIds }) }); }
       async function moveLesson(moduleId, lessonId, direction) { const module = modules.find((item) => item.id === moduleId); if (!module) return; const from = module.lessons.findIndex((lesson) => String(lesson.lessonId) === String(lessonId)); const to = direction === "up" ? from - 1 : from + 1; if (from < 0 || to < 0 || to >= module.lessons.length) return; const [moved] = module.lessons.splice(from, 1); module.lessons.splice(to, 0, moved); render(); try { await persistLessonOrder(moduleId, module.lessons.map((lesson) => lesson.lessonId)); showToast("Video order updated"); } catch (error) { await loadWorkspace(); showToast(error.message); } }
 
       document.addEventListener("click", async (event) => {
+        const authModeButton = event.target.closest("[data-auth-mode]"); if (authModeButton && !state.authUser) { state.authMode = authModeButton.dataset.authMode === "signup" ? "signup" : "login"; render(); return; }
         const mobileNav = event.target.closest("[data-toggle-mobile-nav]"); if (mobileNav) { const menu = document.querySelector("#mobile-nav"); const open = menu?.classList.toggle("hidden") === false; mobileNav.setAttribute("aria-expanded", String(open)); return; }
         const dashboard = event.target.closest("[data-open-dashboard]"); if (dashboard && state.authUser?.role === "admin") { navigate("/admin"); return; }
         const adminRoute = event.target.closest("[data-admin-route]"); if (adminRoute && state.authUser?.role === "admin") { if (adminRoute.dataset.batchSelect) state.adminBatchId = adminRoute.dataset.batchSelect; navigate(adminRoute.dataset.adminRoute); return; }
-        const logout = event.target.closest("[data-logout]"); if (logout) { await request("/api/auth/logout", { method: "POST" }).catch(() => {}); state.authUser = null; state.authReady = true; state.view = "home"; navigate("/"); return; }
+        const logout = event.target.closest("[data-logout]"); if (logout) { await request("/api/auth/logout", { method: "POST" }).catch(() => {}); state.authUser = null; state.authReady = true; state.authMode = "login"; state.view = "home"; navigate("/"); return; }
         const requestAccess = event.target.closest("[data-request-access]"); if (requestAccess) { try { navigate(`/modules/${requestAccess.dataset.requestAccess}`); await request(`/api/modules/${requestAccess.dataset.requestAccess}/access-request`, { method: "POST" }); await loadWorkspace(); showToast("Access request sent to the administrator"); } catch (error) { showToast(error.message); } return; }
         const accessDecision = event.target.closest("[data-access-decision]"); if (accessDecision) { const [requestId, status] = accessDecision.dataset.accessDecision.split("|"); try { await request(`/api/admin/access-requests/${requestId}`, { method: "PATCH", body: JSON.stringify({ status }) }); await loadWorkspace(); navigate("/admin/access-requests"); showToast(status === "approved" ? "Module access approved" : "Access request denied"); } catch (error) { showToast(error.message); } return; }
         const batchAccess = event.target.closest("[data-batch-access]"); if (batchAccess && state.authUser?.role === "user") { navigate("/batches"); return; }

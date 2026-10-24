@@ -325,13 +325,29 @@ async function api(req, res, pathname) {
   }
   if (req.method === "POST" && pathname === "/api/auth/google") {
     const input = await body(req);
-    const fullName = safe(input.name);
-    const phone = safe(input.phone);
-    if (fullName.length < 2 || phone.length < 7) return json(res, 400, { error: "Full name and phone number are required" });
+    const mode = input.mode === "signup" || input.mode === "login" ? input.mode : "";
+    if (!mode) return json(res, 400, { error: "Choose Log in or Sign up" });
     const profile = await verifyGoogleCredential(String(input.credential || ""));
     const database = await db();
-    await database.query(`INSERT INTO users (google_sub, email, full_name, phone, last_login_at) VALUES (?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE email=VALUES(email), full_name=VALUES(full_name), phone=VALUES(phone), last_login_at=NOW()`, [profile.sub, profile.email, fullName, phone]);
-    const [[user]] = await database.query("SELECT id, email, full_name, phone FROM users WHERE google_sub=? LIMIT 1", [profile.sub]);
+    const [[existingUser]] = await database.query("SELECT id FROM users WHERE google_sub=? LIMIT 1", [profile.sub]);
+    let userId = existingUser?.id;
+    if (!existingUser) {
+      if (mode === "login") return json(res, 404, { error: "No Scalevo account is linked to this Google account. Choose Sign up to register." });
+      const fullName = safe(input.name);
+      const phone = safe(input.phone);
+      if (fullName.length < 2 || phone.length < 7) return json(res, 400, { error: "Full name and phone number are required to sign up" });
+      try {
+        const [insert] = await database.query("INSERT INTO users (google_sub, email, full_name, phone, last_login_at) VALUES (?, ?, ?, ?, NOW())", [profile.sub, profile.email, fullName, phone]);
+        userId = insert.insertId;
+      } catch (error) {
+        if (error.code !== "ER_DUP_ENTRY") throw error;
+        const [[racedUser]] = await database.query("SELECT id FROM users WHERE google_sub=? LIMIT 1", [profile.sub]);
+        if (!racedUser) return json(res, 409, { error: "This Gmail address is already linked to a Scalevo account. Contact the administrator." });
+        userId = racedUser.id;
+      }
+    }
+    await database.query("UPDATE users SET email=?, last_login_at=NOW() WHERE id=?", [profile.email, userId]);
+    const [[user]] = await database.query("SELECT id, email, full_name, phone FROM users WHERE id=? LIMIT 1", [userId]);
     await createSession(res, req, user.id, "user");
     return json(res, 200, { ok: true, user: { role: "user", email: user.email, name: user.full_name, phone: user.phone } });
   }
