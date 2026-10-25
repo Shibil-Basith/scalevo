@@ -281,6 +281,10 @@ async function ensureSchema() {
       PRIMARY KEY (module_id, topic_slug),
       INDEX (module_id)
     )`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS content_migrations (
+      id VARCHAR(160) NOT NULL PRIMARY KEY,
+      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
     await connection.query(`CREATE TABLE IF NOT EXISTS batches (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(180) NOT NULL,
@@ -321,8 +325,72 @@ async function ensureSchema() {
         }
       }
     }
+    await seedProvidedSyllabus(connection);
   } finally {
     connection.release();
+  }
+}
+
+async function seedProvidedSyllabus(connection) {
+  const migrationId = "user-supplied-syllabus-v1";
+  const [[applied]] = await connection.query("SELECT id FROM content_migrations WHERE id=? LIMIT 1", [migrationId]);
+  if (applied) return;
+
+  await connection.beginTransaction();
+  try {
+    const [[rechecked]] = await connection.query("SELECT id FROM content_migrations WHERE id=? LIMIT 1", [migrationId]);
+    if (!rechecked) {
+      const [moduleRows] = await connection.query("SELECT id FROM content_modules");
+      const availableModules = new Set(moduleRows.map((row) => row.id));
+
+      for (const module of seed) {
+        if (!availableModules.has(module.id) || !Array.isArray(module.syllabus)) continue;
+        const [existingRows] = await connection.query(
+          "SELECT topic_slug AS topicSlug, topic_title AS topicTitle, sort_order AS sortOrder FROM content_documentation WHERE module_id=? ORDER BY sort_order, topic_title",
+          [module.id],
+        );
+        const bySlug = new Map(existingRows.map((row) => [row.topicSlug, row]));
+        const byTitle = new Map(existingRows.map((row) => [String(row.topicTitle).trim().toLowerCase(), row]));
+        const includedSlugs = new Set();
+
+        for (let index = 0; index < module.syllabus.length; index += 1) {
+          const topicTitle = String(module.syllabus[index] || "").trim().slice(0, 255);
+          const topicSlug = slugifyChapter(topicTitle);
+          if (!topicTitle || !topicSlug) continue;
+          const existing = bySlug.get(topicSlug) || byTitle.get(topicTitle.toLowerCase());
+          if (existing) {
+            includedSlugs.add(existing.topicSlug);
+            if (Number(existing.sortOrder) !== index) {
+              await connection.query("UPDATE content_documentation SET sort_order=? WHERE module_id=? AND topic_slug=?", [index, module.id, existing.topicSlug]);
+              existing.sortOrder = index;
+            }
+            continue;
+          }
+
+          await connection.query(
+            "INSERT IGNORE INTO content_documentation (module_id, topic_slug, topic_title, markdown, sort_order) VALUES (?, ?, ?, '', ?)",
+            [module.id, topicSlug, topicTitle, index],
+          );
+          includedSlugs.add(topicSlug);
+        }
+
+        let extraOrder = module.syllabus.length;
+        for (const row of existingRows) {
+          if (includedSlugs.has(row.topicSlug)) continue;
+          if (Number(row.sortOrder) !== extraOrder) {
+            await connection.query("UPDATE content_documentation SET sort_order=? WHERE module_id=? AND topic_slug=?", [extraOrder, module.id, row.topicSlug]);
+            row.sortOrder = extraOrder;
+          }
+          extraOrder += 1;
+        }
+      }
+
+      await connection.query("INSERT IGNORE INTO content_migrations (id) VALUES (?)", [migrationId]);
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback().catch(() => {});
+    throw error;
   }
 }
 
@@ -841,8 +909,8 @@ async function start() {
       if (!res.headersSent) json(res, 500, { error: "Server error" }); else res.end();
     }
   });
+  await ensureSchema();
   server.listen(PORT, "0.0.0.0", () => console.log(`DevOps workspace listening on ${PORT}`));
-  ensureSchema().catch((error) => console.error("Database initialization pending:", error.message));
 }
 
 start().catch((error) => { console.error(error); process.exit(1); });

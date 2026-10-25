@@ -20,6 +20,13 @@
         "title": "From commit to feedback",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Principles & culture of DevOps",
+      "DevOps Engineer skills & career scope",
+      "DevOps lifecycle & delivery pipeline",
+      "DevOps market trends (Cloud-native, GitOps, AIOps, DevSecOps)",
+      "Challenges & solutions in adopting DevOps"
     ]
   },
   {
@@ -43,6 +50,13 @@
         "title": "Your first AWS resource",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Cloud computing essentials (IaaS, PaaS, SaaS)",
+      "Cloud providers: AWS, Azure, GCP (overview & comparison)",
+      "Virtualization vs Containers vs Serverless",
+      "Cloud deployment models (public, private, hybrid, multi-cloud)",
+      "Hands-on: Setting up cloud resources (AWS focus + intro to Azure/GCP)"
     ]
   },
   {
@@ -102,6 +116,22 @@
         "title": "User and group management",
         "id": "1GU5DOwX2ZSEoHqkY8PKeo2VafqOZUcnt"
       }
+    ],
+    "syllabus": [
+      "Introduction to Linux & Distributions",
+      "Linux File System Structure",
+      "Basic Linux Commands",
+      "File & Directory Management",
+      "User & Group Management",
+      "File Permissions & Ownership",
+      "Package Management (APT, YUM)",
+      "Process Management",
+      "System Monitoring Commands",
+      "Networking Commands",
+      "Shell Scripting Basics",
+      "Cron Jobs & Task Scheduling",
+      "SSH & Remote Access",
+      "Log Management & Troubleshooting"
     ]
   },
   {
@@ -129,6 +159,13 @@
         "title": "GitHub workflow",
         "id": "1mGAAMQZHjrVbrDVnRRAcgEJHmV9kJZKm"
       }
+    ],
+    "syllabus": [
+      "Git fundamentals (init, clone, add, commit, push, pull)",
+      "Branching, merging, rebasing & workflows",
+      "Remote repositories & collaboration (GitHub/GitLab/Bitbucket)",
+      "Git branching strategies (GitFlow, trunk-based development)",
+      "GitHub Actions/GitLab CI introduction"
     ]
   },
   {
@@ -200,6 +237,13 @@
         "title": "RBAC part 2 and pipeline stage view",
         "id": "1o7fWSipbu_EnqmRTGwmYzZ2QRnO_lXEe"
       }
+    ],
+    "syllabus": [
+      "CI concepts & benefits",
+      "Jenkins: setup, pipelines, plugins, distributed builds",
+      "GitHub Actions / GitLab CI/CD pipelines",
+      "Maven/Gradle build automation",
+      "Automated testing integration"
     ]
   },
   {
@@ -243,6 +287,13 @@
         "title": "Podman and Buildah",
         "id": "1jVbITFUbhtviDQw26eEvy2gIquoDYHC6"
       }
+    ],
+    "syllabus": [
+      "Docker fundamentals (images, containers, Dockerfile)",
+      "Container lifecycle & best practices",
+      "Docker networking & storage",
+      "Docker Compose for multi-container apps",
+      "(Optional): Intro to Podman & Buildah (Docker alternatives)"
     ]
   },
   {
@@ -306,6 +357,16 @@
         "title": "Services",
         "id": "1kgDL3ZxrcT1RUVT7uc0Jgdp5ZQ0NG06c"
       }
+    ],
+    "syllabus": [
+      "Kubernetes fundamentals",
+      "Cluster architecture (master, worker nodes, API server, etcd)",
+      "Pods, ReplicaSets, Deployments, StatefulSets",
+      "Services & networking (ClusterIP, NodePort, Ingress)",
+      "ConfigMaps & Secrets",
+      "Persistent Volumes & Persistent Volume Claims",
+      "Helm & Kustomize for deployment management",
+      "Service Mesh basics (Istio/Linkerd)"
     ]
   },
   {
@@ -333,6 +394,13 @@
         "title": "Terraform introduction and S3 automation",
         "id": "1rcJbZn2Nf9z_1OVyRpgnGP9LpCruwB4d"
       }
+    ],
+    "syllabus": [
+      "Infrastructure automation concepts",
+      "Terraform fundamentals (providers, resources, state, modules)",
+      "Writing & applying Terraform configurations",
+      "Pulumi (overview as modern alternative)",
+      "Integrating IaC into CI/CD pipelines"
     ]
   },
   {
@@ -360,6 +428,13 @@
         "title": "Configuration drift",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Ansible basics (inventory, playbooks, roles)",
+      "YAML syntax & structure",
+      "Ansible Galaxy, handlers, variables",
+      "Automating infrastructure with Ansible",
+      "Comparison with Puppet & Chef"
     ]
   },
   {
@@ -387,6 +462,12 @@
         "title": "Deployment strategies",
         "id": "1y6DMwIYnGAjva7hkJnAub2kmNXlgmNF8"
       }
+    ],
+    "syllabus": [
+      "CD vs Continuous Deployment",
+      "Blue/Green, Canary, and Rolling deployments",
+      "GitOps with ArgoCD & FluxCD",
+      "Integrating deployments with Kubernetes"
     ]
   },
   {
@@ -414,6 +495,13 @@
         "title": "Tracing and alerting",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Importance of monitoring in DevOps",
+      "Prometheus & Grafana (metrics & dashboards)",
+      "ELK / EFK Stack (Elasticsearch/Fluentd/Kibana)",
+      "Tracing with Jaeger/OpenTelemetry",
+      "Alerting & incident management"
     ]
   },
   {
@@ -441,6 +529,13 @@
         "title": "Policy as code",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Security fundamentals in CI/CD",
+      "Vulnerability scanning (Aqua, Trivy, Clair)",
+      "Secrets management (Vault, AWS Secrets Manager, SOPS)",
+      "SAST, DAST & dependency scanning",
+      "Compliance & policy as code (OPA, Kyverno)"
     ]
   },
   {
@@ -468,6 +563,12 @@
         "title": "Documentation systems",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Agile & Scrum overview",
+      "Jira / Azure Boards / Trello for task management",
+      "Slack, Teams & ChatOps in DevOps",
+      "Documentation & knowledge sharing (Confluence, Notion, MkDocs)"
     ]
   },
   {
@@ -495,6 +596,19 @@
         "title": "AI-powered monitoring",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "Introduction to AIOps & MLOps",
+      "AI in DevOps",
+      "Machine Learning Lifecycle",
+      "ML Pipelines Overview",
+      "Model Deployment Concepts",
+      "CI/CD for Machine Learning",
+      "MLflow Introduction",
+      "Kubeflow Overview",
+      "AI-Powered Monitoring",
+      "Predictive Incident Management",
+      "Generative AI for DevOps Engineers"
     ]
   },
   {
@@ -522,6 +636,15 @@
         "title": "Observability and assessment",
         "id": ""
       }
+    ],
+    "syllabus": [
+      "End-to-End DevOps pipeline",
+      "Code in GitHub",
+      "CI with GitHub Actions/Jenkins",
+      "Build & containerize app with Docker",
+      "Deploy on Kubernetes (with Helm/ArgoCD)",
+      "Monitor with Prometheus & Grafana",
+      "Implement DevSecOps (Trivy + Vault)"
     ]
   }
 ]
