@@ -360,6 +360,80 @@ async function createSession(res, req, userId, role, extra = {}) {
   return { token, role, ...extra };
 }
 
+function slugifyChapter(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 240);
+}
+
+async function syncModuleChapters(connection, moduleId, chapters) {
+  if (!Array.isArray(chapters)) return { ok: true };
+  if (chapters.length > 100) return { ok: false, error: "A module can have at most 100 syllabus chapters" };
+
+  const normalized = [];
+  const seenTitles = new Set();
+  for (const [index, item] of chapters.entries()) {
+    const topicTitle = typeof item?.topicTitle === "string" ? item.topicTitle.trim().slice(0, 255) : "";
+    if (!topicTitle) continue;
+    const normalizedTitle = topicTitle.toLocaleLowerCase();
+    if (seenTitles.has(normalizedTitle)) return { ok: false, error: "Chapter titles must be unique within a module" };
+    seenTitles.add(normalizedTitle);
+    normalized.push({
+      requestedSlug: typeof item.topicSlug === "string" ? item.topicSlug.trim().slice(0, 255) : "",
+      topicTitle,
+      sortOrder: index,
+    });
+  }
+
+  const [existingRows] = await connection.query(
+    "SELECT topic_slug AS topicSlug FROM content_documentation WHERE module_id=? FOR UPDATE",
+    [moduleId],
+  );
+  const existingSlugs = new Set(existingRows.map((row) => row.topicSlug));
+  const usedSlugs = new Set();
+  for (const chapter of normalized) {
+    let topicSlug = chapter.requestedSlug && existingSlugs.has(chapter.requestedSlug)
+      ? chapter.requestedSlug
+      : "";
+    if (!topicSlug) {
+      const base = slugifyChapter(chapter.topicTitle) || `chapter-${chapter.sortOrder + 1}`;
+      topicSlug = base;
+      let suffix = 2;
+      while (existingSlugs.has(topicSlug) || usedSlugs.has(topicSlug)) {
+        const ending = `-${suffix++}`;
+        topicSlug = `${base.slice(0, 255 - ending.length)}${ending}`;
+      }
+    }
+    if (usedSlugs.has(topicSlug)) return { ok: false, error: "A syllabus chapter was submitted more than once" };
+    usedSlugs.add(topicSlug);
+    if (existingSlugs.has(topicSlug)) {
+      await connection.query(
+        "UPDATE content_documentation SET topic_title=?, sort_order=? WHERE module_id=? AND topic_slug=?",
+        [chapter.topicTitle, chapter.sortOrder, moduleId, topicSlug],
+      );
+    } else {
+      await connection.query(
+        "INSERT INTO content_documentation (module_id, topic_slug, topic_title, markdown, sort_order) VALUES (?, ?, ?, '', ?)",
+        [moduleId, topicSlug, chapter.topicTitle, chapter.sortOrder],
+      );
+    }
+  }
+
+  for (const row of existingRows) {
+    if (!usedSlugs.has(row.topicSlug)) {
+      await connection.query(
+        "DELETE FROM content_documentation WHERE module_id=? AND topic_slug=?",
+        [moduleId, row.topicSlug],
+      );
+    }
+  }
+  return { ok: true };
+}
+
 async function getContent(accessUserId = null) {
   const database = await db();
   const [modules] = await database.query("SELECT id, module_number AS number, category, title, accent, icon, description, sort_order FROM content_modules ORDER BY CAST(module_number AS UNSIGNED), module_number, title");
@@ -370,7 +444,23 @@ async function getContent(accessUserId = null) {
   const accessByModule = Object.fromEntries(accessRows.map((row) => [row.moduleId, row.status]));
   const batchModuleIds = new Set(batchModuleRows.map((row) => row.moduleId));
   const docsByModule = documentation.reduce((result, doc) => { (result[doc.moduleId] ||= []).push(doc); return result; }, {});
-  return modules.map((module) => { const batchUnlocked = batchModuleIds.has(module.id); const unlocked = !accessUserId || accessByModule[module.id] === "approved" || batchUnlocked; const moduleLessons = lessons.filter((lesson) => lesson.moduleId === module.id).map((lesson) => ({ id: lesson.driveId, title: lesson.title, ready: Boolean(lesson.driveId), lessonId: lesson.lessonId })); return { ...module, accessStatus: accessUserId ? (accessByModule[module.id] === "approved" || batchUnlocked ? "approved" : (accessByModule[module.id] || "locked")) : "admin", unlocked, lessonCount: moduleLessons.length, lessons: unlocked ? moduleLessons : [], documentation: unlocked || !accessUserId ? (docsByModule[module.id] || []) : [] }; });
+  return modules.map((module) => {
+    const batchUnlocked = batchModuleIds.has(module.id);
+    const unlocked = !accessUserId || accessByModule[module.id] === "approved" || batchUnlocked;
+    const moduleLessons = lessons
+      .filter((lesson) => lesson.moduleId === module.id)
+      .map((lesson) => ({ id: lesson.driveId, title: lesson.title, ready: Boolean(lesson.driveId), lessonId: lesson.lessonId }));
+    const chapterRows = docsByModule[module.id] || [];
+    return {
+      ...module,
+      accessStatus: accessUserId ? (accessByModule[module.id] === "approved" || batchUnlocked ? "approved" : (accessByModule[module.id] || "locked")) : "admin",
+      unlocked,
+      lessonCount: moduleLessons.length,
+      lessons: unlocked ? moduleLessons : [],
+      chapters: chapterRows.map(({ topicSlug, topicTitle, sortOrder }) => ({ topicSlug, topicTitle, sortOrder })),
+      documentation: unlocked ? chapterRows : [],
+    };
+  });
 }
 
 async function verifyGoogleCredential(credential) {
@@ -536,14 +626,63 @@ async function api(req, res, pathname) {
       connection.release();
     }
   }
+  const chapterCollectionMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/chapters$/);
+  if (chapterCollectionMatch && req.method === "POST") {
+    const input = await body(req);
+    const topicTitle = typeof input.topicTitle === "string" ? input.topicTitle.trim().slice(0, 255) : "";
+    if (!topicTitle) return json(res, 400, { error: "Chapter title is required" });
+    const connection = await (await db()).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [[module]] = await connection.query("SELECT id FROM content_modules WHERE id=? FOR UPDATE", [chapterCollectionMatch[1]]);
+      if (!module) { await connection.rollback(); return json(res, 404, { error: "Module not found" }); }
+      const [rows] = await connection.query("SELECT topic_slug AS topicSlug, topic_title AS topicTitle, sort_order AS sortOrder FROM content_documentation WHERE module_id=? FOR UPDATE", [chapterCollectionMatch[1]]);
+      if (rows.some((row) => row.topicTitle.toLocaleLowerCase() === topicTitle.toLocaleLowerCase())) {
+        await connection.rollback();
+        return json(res, 409, { error: "That chapter title already exists in this module" });
+      }
+      const usedSlugs = new Set(rows.map((row) => row.topicSlug));
+      const base = slugifyChapter(topicTitle) || `chapter-${rows.length + 1}`;
+      let topicSlug = base;
+      let suffix = 2;
+      while (usedSlugs.has(topicSlug)) {
+        const ending = `-${suffix++}`;
+        topicSlug = `${base.slice(0, 255 - ending.length)}${ending}`;
+      }
+      const sortOrder = rows.reduce((max, row) => Math.max(max, Number(row.sortOrder) || 0), -1) + 1;
+      await connection.query("INSERT INTO content_documentation (module_id, topic_slug, topic_title, markdown, sort_order) VALUES (?, ?, ?, '', ?)", [chapterCollectionMatch[1], topicSlug, topicTitle, sortOrder]);
+      await connection.commit();
+      return json(res, 201, { chapter: { topicSlug, topicTitle, sortOrder } });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+  const chapterItemMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/chapters\/([^/]+)$/);
+  if (chapterItemMatch && req.method === "DELETE") {
+    const result = await (await db()).query("DELETE FROM content_documentation WHERE module_id=? AND topic_slug=?", [chapterItemMatch[1], chapterItemMatch[2]]);
+    if (!result[0].affectedRows) return json(res, 404, { error: "Syllabus chapter not found" });
+    return json(res, 200, { ok: true });
+  }
+  const documentDeleteMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/documentation\/([^/]+)$/);
+  if (documentDeleteMatch && req.method === "DELETE") {
+    const [[chapter]] = await (await db()).query("SELECT topic_slug FROM content_documentation WHERE module_id=? AND topic_slug=? LIMIT 1", [documentDeleteMatch[1], documentDeleteMatch[2]]);
+    if (!chapter) return json(res, 404, { error: "Syllabus chapter not found" });
+    await (await db()).query("UPDATE content_documentation SET markdown='' WHERE module_id=? AND topic_slug=?", [documentDeleteMatch[1], documentDeleteMatch[2]]);
+    return json(res, 200, { ok: true });
+  }
   const documentationMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/documentation\/([^/]+)$/);
   if (documentationMatch && req.method === "PATCH") {
     const input = await body(req);
-    const topicTitle = safe(input.topicTitle || input.topicSlug, "Untitled topic");
+    const topicTitle = typeof input.topicTitle === "string" ? input.topicTitle.trim().slice(0, 255) : "";
     const markdown = typeof input.markdown === "string" ? input.markdown.slice(0, 50000) : "";
-    const [[module]] = await (await db()).query("SELECT id FROM content_modules WHERE id=? LIMIT 1", [documentationMatch[1]]);
-    if (!module) return json(res, 404, { error: "Module not found" });
-    await (await db()).query("INSERT INTO content_documentation (module_id, topic_slug, topic_title, markdown, sort_order) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE topic_title=VALUES(topic_title), markdown=VALUES(markdown)", [documentationMatch[1], documentationMatch[2], topicTitle, markdown, Number(input.sortOrder) || 0]);
+    if (!topicTitle) return json(res, 400, { error: "Chapter title is required" });
+    const [[chapter]] = await (await db()).query("SELECT sort_order AS sortOrder FROM content_documentation WHERE module_id=? AND topic_slug=? LIMIT 1", [documentationMatch[1], documentationMatch[2]]);
+    if (!chapter) return json(res, 404, { error: "Syllabus chapter not found. Add it to the module first." });
+    const sortOrder = Number.isInteger(Number(input.sortOrder)) ? Number(input.sortOrder) : Number(chapter.sortOrder);
+    await (await db()).query("UPDATE content_documentation SET topic_title=?, markdown=?, sort_order=? WHERE module_id=? AND topic_slug=?", [topicTitle, markdown, sortOrder, documentationMatch[1], documentationMatch[2]]);
     return json(res, 200, { ok: true });
   }
   if (req.method === "GET" && pathname === "/api/batches") {
@@ -598,10 +737,70 @@ async function api(req, res, pathname) {
   const reorderMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/lessons\/reorder$/);
   const lessonMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/lessons(?:\/([0-9]+))?$/);
   if (req.method === "POST" && pathname === "/api/admin/modules") {
-    const input = await body(req); const id = safe(input.id) || safe(input.title).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "module"); const database = await db(); const [[max]] = await database.query("SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM content_modules"); await database.query("INSERT INTO content_modules (id, module_number, category, title, accent, icon, description, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [id, safe(input.number), safe(input.category, "General"), safe(input.title), safe(input.accent, "#3568f5"), safe(input.icon), safe(input.description, "A new DevOps learning module."), Number(max.maxOrder) + 1]); return json(res, 201, { module: (await getContent()).find((item) => item.id === id) });
+    const input = await body(req);
+    const title = typeof input.title === "string" ? input.title.trim().slice(0, 255) : "";
+    if (!title) return json(res, 400, { error: "Module name is required" });
+    const id = (safe(input.id) || slugifyChapter(title) || `module-${Date.now()}`).slice(0, 100);
+    const database = await db();
+    const connection = await database.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [[existing]] = await connection.query("SELECT id FROM content_modules WHERE id=? FOR UPDATE", [id]);
+      if (existing) { await connection.rollback(); return json(res, 409, { error: "A module with that ID already exists" }); }
+      const [[max]] = await connection.query("SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM content_modules");
+      await connection.query("INSERT INTO content_modules (id, module_number, category, title, accent, icon, description, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [id, safe(input.number), safe(input.category, "General"), title, safe(input.accent, "#3568f5"), safe(input.icon), safe(input.description, "A new DevOps learning module."), Number(max.maxOrder) + 1]);
+      if (Array.isArray(input.chapters)) {
+        const result = await syncModuleChapters(connection, id, input.chapters);
+        if (!result.ok) { await connection.rollback(); return json(res, 400, { error: result.error }); }
+      }
+      await connection.commit();
+      return json(res, 201, { module: (await getContent()).find((item) => item.id === id) });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
-  if (moduleMatch && req.method === "PATCH") { const input = await body(req); await (await db()).query("UPDATE content_modules SET module_number=?, category=?, title=?, accent=?, icon=?, description=? WHERE id=?", [safe(input.number), safe(input.category, "General"), safe(input.title), safe(input.accent, "#3568f5"), safe(input.icon), safe(input.description), moduleMatch[1]]); return json(res, 200, { ok: true }); }
-  if (moduleMatch && req.method === "DELETE") { await (await db()).query("DELETE FROM content_lessons WHERE module_id=?", [moduleMatch[1]]); await (await db()).query("DELETE FROM content_modules WHERE id=?", [moduleMatch[1]]); return json(res, 200, { ok: true }); }
+  if (moduleMatch && req.method === "PATCH") {
+    const input = await body(req);
+    const connection = await (await db()).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [[existing]] = await connection.query("SELECT id FROM content_modules WHERE id=? FOR UPDATE", [moduleMatch[1]]);
+      if (!existing) { await connection.rollback(); return json(res, 404, { error: "Module not found" }); }
+      const title = typeof input.title === "string" ? input.title.trim().slice(0, 255) : "";
+      if (!title) { await connection.rollback(); return json(res, 400, { error: "Module name is required" }); }
+      await connection.query("UPDATE content_modules SET module_number=?, category=?, title=?, accent=?, icon=?, description=? WHERE id=?", [safe(input.number), safe(input.category, "General"), title, safe(input.accent, "#3568f5"), safe(input.icon), safe(input.description), moduleMatch[1]]);
+      if (Array.isArray(input.chapters)) {
+        const result = await syncModuleChapters(connection, moduleMatch[1], input.chapters);
+        if (!result.ok) { await connection.rollback(); return json(res, 400, { error: result.error }); }
+      }
+      await connection.commit();
+      return json(res, 200, { ok: true });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+  if (moduleMatch && req.method === "DELETE") {
+    const connection = await (await db()).getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query("DELETE FROM content_documentation WHERE module_id=?", [moduleMatch[1]]);
+      await connection.query("DELETE FROM content_lessons WHERE module_id=?", [moduleMatch[1]]);
+      await connection.query("DELETE FROM content_modules WHERE id=?", [moduleMatch[1]]);
+      await connection.commit();
+      return json(res, 200, { ok: true });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
   if (reorderMatch && req.method === "PATCH") {
     const input = await body(req); const lessonIds = Array.isArray(input.lessonIds) ? input.lessonIds.map((id) => Number(id)).filter(Number.isInteger) : [];
     const connection = await (await db()).getConnection();

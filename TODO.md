@@ -18,6 +18,7 @@
 - [x] Seed the 15-module curriculum with official tool logos where available, real recording IDs from the reference where available, and pending lesson slots for content that still needs admin configuration.
 - [x] Show locked, pending, approved, and denied access states; require admin approval before recordings or documentation can be consumed.
 - [x] Keep learner documentation empty by default and show a clear unpublished state instead of demo prose.
+- [x] When a learner opens a module, show the ordered syllabus chapter list first and provide two toggles: `Videos` and `Documents`. `Videos` must preserve the existing recording order. `Documents` must show the document for each chapter. Keep videos and document contents behind the existing access-approval rules while allowing the syllabus outline to be seen. Confirmed in Chromium at 390px with ordered chapter titles, both tabs, chapter documentation, and no horizontal overflow.
 - [x] Keep recording playback inside the branded Scalevo player treatment without Google Drive branding or outbound Drive navigation.
 - [x] Persist approved learner progress and expose it to the admin progress view.
 - [x] Use the Plyr custom video player for videos stored in Google Drive. Keep playback inside the Scalevo player and do not show an option or link to redirect/open the video in the Google Drive application.
@@ -29,6 +30,8 @@
 - [x] Provide a markdown editor that selects a module and topic, saves documentation to the database, and publishes it only to approved learners.
 - [x] Provide safe empty states when no users, requests, recordings, or documentation are configured.
 - [x] Let an administrator manually delete a learner from the admin user directory. Confirm the action before submitting it and remove the learner's account-associated sessions, progress, module-access requests, and batch requests along with the user record.
+- [x] In Add Module and Edit Module, allow the administrator to add, rename, remove, and reorder the syllabus chapters for each module. Make these same chapter titles the canonical list used by learner module views and Documentation admin; do not lose a chapter's document when only its title or order changes. Confirmed Add/Edit form rendering and Add Chapter control at 390px; API checks verified create, rename/reorder, document preservation, and cleanup.
+- [x] In Documentation admin, let the administrator choose a module and chapter, add a chapter, edit the chapter title, save/update its Markdown document, remove the document while keeping the chapter in the syllabus, or delete the chapter and its document together. Confirm destructive removal. Confirmed the UI exposes chapter add, document editor, document removal, and chapter deletion; API checks confirmed document-only removal preserves the chapter and chapter deletion removes its document.
 
 ## Manus preview
 - [x] Provide an in-Manus preview of the updated Scalevo website, with learner sign-in at `/` and administrator sign-in at `/admin`, using a separate Manus project database. Do not copy production learner data or production secrets; use the public Google OAuth client ID supplied for this preview only in the preview server process; do not push to the user's GitHub repository or publish to the live website.
