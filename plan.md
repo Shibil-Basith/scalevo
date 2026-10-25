@@ -1,7 +1,7 @@
 # Scalevo Learning Workspace — implementation plan
 
 ## Scope and source of truth
-Update the existing Scalevo DevOps learning platform without cloning the Softr template or removing existing features. The production server serves the root `index.html` and `server.js`; `public/` is a legacy prototype and is not the production client. Preserve the existing verified-Google learner authentication, separate administrator authentication, 15-module learning catalog, approval-gated module and batch access, recordings, documentation, progress, and admin management workflows.
+Update the existing Scalevo DevOps learning platform without cloning the Softr template or removing existing features. The production server serves the root `index.html` and `server.js`; the unused legacy static prototype formerly in `public/` has been removed from the repository. Preserve the existing verified-Google learner authentication, separate administrator authentication, 15-module learning catalog, approval-gated module and batch access, recordings, documentation, progress, and admin management workflows.
 
 ## Implementation approach
 - Keep `/` learner-only and make `/admin` the administrator sign-in entry and protected admin workspace. Do not expose admin login on the learner home page.
@@ -16,7 +16,7 @@ Update the existing Scalevo DevOps learning platform without cloning the Softr t
 - When a learner opens a module, show the ordered chapter syllabus first, followed by `Videos` and `Documents` toggles. Videos keep the existing recording order; Documents show each chapter collapsed by default with a down-arrow control that reveals only that chapter's document. Use accessible expanded/collapsed state and keep playback/document contents behind existing approval while the syllabus outline remains visible.
 - In Admin Documentation, choose a module and syllabus chapter, edit its title and Markdown, add chapters, remove a document without removing its chapter, or delete a chapter together with its document. Confirm destructive deletion and preserve existing chapter content during unrelated edits.
 - Provide a dedicated `Admin → Syllabus` section at `/admin/syllabus`, listing modules and a selected module's ordered chapter editor. Let admins add, rename, reorder, and delete chapters there as a focused syllabus workflow; use the shared chapter records and endpoint so documents survive title/order edits, and warn that deleting a chapter also removes its attached document.
-- Keep all production changes in the root client/server, deployment files, route manifest, and project notes. Do not migrate the legacy `public/` prototype into the production path.
+- Keep all production changes in the root client/server, deployment files, route manifest, and project notes. Do not recreate the retired `public/` prototype.
 
 ## Project structure
 - `server.js`: Node HTTP API, MySQL schema/bootstrap, Google authentication and sessions, role-protected learner/admin APIs, media grants/streaming, and root static serving.
@@ -25,7 +25,6 @@ Update the existing Scalevo DevOps learning platform without cloning the Softr t
 - `manus-routes.json`: route manifest for the served website, including learner and administrator paths.
 - `scalevo-*.svg` / `scalevo-mark.svg`: existing Scalevo wordmarks and marks used by the UI.
 - `Dockerfile`, `package.json`, and `package-lock.json`: production Node container and dependencies.
-- `public/`: legacy prototype, not served by the production server.
 - `TODO.md`: outcome criteria for the requested changes and prior platform behaviors.
 
 ## Design direction
