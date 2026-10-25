@@ -694,6 +694,26 @@ async function api(req, res, pathname) {
       connection.release();
     }
   }
+  const syllabusMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/syllabus$/);
+  if (syllabusMatch && req.method === "PATCH") {
+    const input = await body(req);
+    if (!Array.isArray(input.chapters)) return json(res, 400, { error: "Chapters must be provided as a list" });
+    const connection = await (await db()).getConnection();
+    try {
+      await connection.beginTransaction();
+      const [[module]] = await connection.query("SELECT id FROM content_modules WHERE id=? FOR UPDATE", [syllabusMatch[1]]);
+      if (!module) { await connection.rollback(); return json(res, 404, { error: "Module not found" }); }
+      const result = await syncModuleChapters(connection, syllabusMatch[1], input.chapters);
+      if (!result.ok) { await connection.rollback(); return json(res, 400, { error: result.error }); }
+      await connection.commit();
+      return json(res, 200, { ok: true });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
   const chapterCollectionMatch = pathname.match(/^\/api\/admin\/modules\/([^/]+)\/chapters$/);
   if (chapterCollectionMatch && req.method === "POST") {
     const input = await body(req);

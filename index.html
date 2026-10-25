@@ -179,7 +179,7 @@
       modules = sortModules(modules);
       const app = document.querySelector("#app");
       const toast = document.querySelector("#toast");
-      const state = { view: "home", authMode: "login", moduleId: null, moduleTabs: {}, adminModuleId: modules[0]?.id || "", adminDocTopic: "", adminPage: "overview", adminBatchId: null, query: "", player: null, authReady: false, authUser: null, googleClientId: "", adminUsers: [], adminAccessRequests: [], adminBatches: [], batchRequests: [], userBatches: [], totalLessons: 0 };
+      const state = { view: "home", authMode: "login", moduleId: null, moduleTabs: {}, adminModuleId: modules[0]?.id || "", adminSyllabusModuleId: modules[0]?.id || "", adminDocTopic: "", adminPage: "overview", adminBatchId: null, query: "", player: null, authReady: false, authUser: null, googleClientId: "", adminUsers: [], adminAccessRequests: [], adminBatches: [], batchRequests: [], userBatches: [], totalLessons: 0 };
       let completed = [];
       let dragState = null;
 
@@ -198,7 +198,7 @@
       }
       function adminNav(active) {
         const links = [
-          ["overview", "LayoutDashboard", "Overview"], ["batches", "CalendarDays", "Batches"], ["batches/new", "PlusSquare", "Add batch"], ["batches/edit", "SlidersHorizontal", "Edit batch"], ["batch-requests", "UserRoundPlus", "Batch users"], ["modules/new", "PlusSquare", "Add module"], ["modules/edit", "SlidersHorizontal", "Edit module"], ["recordings", "Clapperboard", "Recordings"], ["documentation", "FileText", "Documentation"], ["access-requests", "ShieldCheck", "Access requests"], ["users", "Users", "Learners"]
+          ["overview", "LayoutDashboard", "Overview"], ["batches", "CalendarDays", "Batches"], ["batches/new", "PlusSquare", "Add batch"], ["batches/edit", "SlidersHorizontal", "Edit batch"], ["batch-requests", "UserRoundPlus", "Batch users"], ["modules/new", "PlusSquare", "Add module"], ["modules/edit", "SlidersHorizontal", "Edit module"], ["recordings", "Clapperboard", "Recordings"], ["syllabus", "BookOpen", "Syllabus"], ["documentation", "FileText", "Documentation"], ["access-requests", "ShieldCheck", "Access requests"], ["users", "Users", "Learners"]
         ];
         return `<nav class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">${links.map(([page, iconName, label]) => `<button class="admin-nav-button focus-ring rounded-xl border px-3 py-3 text-left text-xs font-extrabold transition ${active === page ? "border-violet-300 bg-violet-50 text-violet-800" : "border-slate-200 bg-white/70 text-slate-500 hover:border-slate-300 hover:text-slate-900"}" data-admin-route="/admin/${page}">${icon(iconName, "h-4 w-4")}<span class="mt-2 block">${label}</span></button>`).join("")}</nav>`;
       }
@@ -322,6 +322,26 @@ function lessonRow(module, lesson, index) {
           sortOrder,
         })).filter((chapter) => chapter.topicTitle);
       }
+      function syllabusEditorPage() {
+        const selected = modules.find((module) => module.id === state.adminSyllabusModuleId) || modules[0] || null;
+        if (selected) state.adminSyllabusModuleId = selected.id;
+        const chapters = selected?.chapters || [];
+        return `<section class="mt-7 space-y-5">
+          <div class="glass rounded-[1.25rem] p-5 sm:p-7">
+            <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div><p class="text-xs font-extrabold uppercase tracking-[.18em] text-violet-600">Curriculum editor</p><h2 class="display mt-1 text-2xl font-extrabold tracking-[-.04em] text-slate-950">Syllabus by module</h2><p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Choose a module to add, rename, reorder, or remove its chapter outline.</p></div>
+              <span class="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-2 text-xs font-bold text-slate-500">${modules.length} modules</span>
+            </div>
+            ${modules.length ? `<div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">${modules.map((module, index) => `<button type="button" data-syllabus-module="${escapeHtml(module.id)}" aria-pressed="${module.id === selected?.id}" class="focus-ring rounded-xl border p-4 text-left transition ${module.id === selected?.id ? "border-violet-300 bg-violet-50/80 ring-2 ring-violet-100" : "border-slate-200 bg-white/70 hover:border-violet-200 hover:bg-white"}"><div class="flex items-center justify-between gap-3"><span class="text-[10px] font-extrabold uppercase tracking-[.14em] text-slate-400">Module ${escapeHtml(module.number || String(index + 1).padStart(2, "0"))}</span><span class="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">${(module.chapters || []).length} ${(module.chapters || []).length === 1 ? "chapter" : "chapters"}</span></div><span class="mt-2 block text-sm font-extrabold text-slate-900">${escapeHtml(module.title)}</span><span class="mt-1 block text-xs font-medium text-slate-500">${escapeHtml(module.category || "DevOps curriculum")}</span></button>`).join("")}</div>` : `<p class="mt-5 rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Create a module first, then add its syllabus chapters here.</p>`}
+          </div>
+          ${selected ? `<form data-admin-syllabus-form data-module-id="${escapeHtml(selected.id)}" class="glass rounded-[1.25rem] p-5 sm:p-7">
+            <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p class="text-xs font-extrabold uppercase tracking-[.18em] text-slate-400">Selected module</p><h3 class="display mt-1 text-xl font-extrabold tracking-[-.04em] text-slate-950">Module ${escapeHtml(selected.number)} · ${escapeHtml(selected.title)}</h3><p class="mt-1 text-xs font-medium text-slate-500">${chapters.length} ${chapters.length === 1 ? "chapter" : "chapters"} in the syllabus</p></div><button type="button" data-add-syllabus class="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-violet-500">${icon("plus", "h-4 w-4")} Add chapter</button></div>
+            <div data-syllabus-list class="mt-5 space-y-2">${chapters.map((chapter, index) => syllabusRowMarkup(chapter, index)).join("")}</div>
+            <p class="mt-3 text-xs leading-5 text-slate-500">Use the arrows to set the learner-facing order. Renaming or reordering keeps the chapter document; deleting a saved chapter also deletes its document and asks for confirmation.</p>
+            <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><span class="text-xs font-medium text-slate-400">Changes apply to the selected module’s learner syllabus.</span><button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-blue-600">${icon("save", "h-4 w-4")} Save syllabus changes</button></div>
+          </form>` : ""}
+        </section>`;
+      }
       function moduleFormPage(mode, selected) {
         const editing = mode === "edit";
         const chapters = selected?.chapters || [];
@@ -368,7 +388,7 @@ function recordingsPage(selected) {
         const selected = modules.find((module) => module.id === state.adminModuleId) || modules[0];
         if (selected) state.adminModuleId = selected.id;
         const page = state.adminPage || "overview";
-        const body = page === "batches" ? adminBatchesPage() : page === "batches/new" ? batchFormPage("new") : page === "batches/edit" ? batchFormPage("edit", (state.adminBatches || []).find((batch) => String(batch.id) === String(state.adminBatchId)) || state.adminBatches?.[0]) : page === "batch-requests" ? batchRequestsPage() : page === "modules/new" ? moduleFormPage("new") : page === "modules/edit" ? moduleFormPage("edit", selected) : page === "recordings" ? recordingsPage(selected) : page === "documentation" ? documentationPage(selected) : page === "access-requests" ? accessRequestsPage() : page === "users" ? usersPage() : `<section class="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4"><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/modules/new"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-blue-600">Content</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Add a module</h2><p class="mt-2 text-sm leading-6 text-slate-500">Create a new module with its title, number, category, icon, and description.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/modules/edit"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-violet-600">Content</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Edit a module</h2><p class="mt-2 text-sm leading-6 text-slate-500">Update the selected module’s identity and learner-facing details.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/recordings"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-emerald-600">Media</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Manage recordings</h2><p class="mt-2 text-sm leading-6 text-slate-500">Add, edit, reorder, or remove lesson recordings without crowding the dashboard.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/documentation"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-amber-600">Docs</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Manage documentation</h2><p class="mt-2 text-sm leading-6 text-slate-500">Choose a topic and publish Markdown notes for approved learners.</p></button></section>`;
+        const body = page === "syllabus" ? syllabusEditorPage() : page === "batches" ? adminBatchesPage() : page === "batches/new" ? batchFormPage("new") : page === "batches/edit" ? batchFormPage("edit", (state.adminBatches || []).find((batch) => String(batch.id) === String(state.adminBatchId)) || state.adminBatches?.[0]) : page === "batch-requests" ? batchRequestsPage() : page === "modules/new" ? moduleFormPage("new") : page === "modules/edit" ? moduleFormPage("edit", selected) : page === "recordings" ? recordingsPage(selected) : page === "documentation" ? documentationPage(selected) : page === "access-requests" ? accessRequestsPage() : page === "users" ? usersPage() : `<section class="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4"><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/modules/new"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-blue-600">Content</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Add a module</h2><p class="mt-2 text-sm leading-6 text-slate-500">Create a new module with its title, number, category, icon, and description.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/modules/edit"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-violet-600">Content</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Edit a module</h2><p class="mt-2 text-sm leading-6 text-slate-500">Update the selected module’s identity and learner-facing details.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/recordings"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-emerald-600">Media</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Manage recordings</h2><p class="mt-2 text-sm leading-6 text-slate-500">Add, edit, reorder, or remove lesson recordings without crowding the dashboard.</p></button><button class="card glass rounded-[1.25rem] p-6 text-left" data-admin-route="/admin/documentation"><p class="text-xs font-extrabold uppercase tracking-[.18em] text-amber-600">Docs</p><h2 class="display mt-2 text-xl font-extrabold text-slate-950">Manage documentation</h2><p class="mt-2 text-sm leading-6 text-slate-500">Choose a topic and publish Markdown notes for approved learners.</p></button></section>`;
         return `${header()}<main class="mx-auto max-w-7xl px-5 pb-16 sm:px-8 lg:px-10"><button class="focus-ring mt-7 inline-flex items-center gap-2 text-sm font-bold text-slate-500 transition hover:text-slate-950" data-action="home">${icon("arrow-left", "h-4 w-4")} Back to learner workspace</button>${adminHeader("Administrator workspace", "Manage Scalevo in focused pages.", "Each admin workflow has its own route so module details, recordings, documentation, access requests, and learners stay easy to find.")}${adminNav(page)}${body}</main>`;
       }
       function render() {
@@ -567,6 +587,27 @@ function recordingsPage(selected) {
       });
       document.addEventListener("input", (event) => { if (event.target.matches("[data-search]")) { state.query = event.target.value; render(); const input = document.querySelector("[data-search]"); if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } } });
       document.addEventListener("keydown", (event) => { if (event.key === "Escape") closePlayer(); });
+      document.addEventListener("click", (event) => {
+        const moduleButton = event.target.closest("[data-syllabus-module]");
+        if (!moduleButton || state.authUser?.role !== "admin") return;
+        state.adminSyllabusModuleId = moduleButton.dataset.syllabusModule;
+        render();
+      });
+      document.addEventListener("submit", async (event) => {
+        const form = event.target.closest("[data-admin-syllabus-form]");
+        if (!form || state.authUser?.role !== "admin") return;
+        event.preventDefault();
+        const moduleId = form.dataset.moduleId;
+        const chapters = collectSyllabusChapters(form);
+        try {
+          await request(`/api/admin/modules/${encodeURIComponent(moduleId)}/syllabus`, { method: "PATCH", body: JSON.stringify({ chapters }) });
+          state.adminSyllabusModuleId = moduleId;
+          await loadWorkspace();
+          showToast("Syllabus saved");
+        } catch (error) {
+          showToast(error.message);
+        }
+      });
       applyRoute();
       render();
       loadWorkspace();
